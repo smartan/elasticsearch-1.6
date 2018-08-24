@@ -180,21 +180,30 @@ public class Bootstrap {
         keepAliveLatch.countDown();
     }
 
+    /**
+     * elasticsearch入口方法
+     * @param args
+     */
     public static void main(String[] args) {
         System.setProperty("es.logger.prefix", "");
+        // 无参构造方法
         bootstrap = new Bootstrap();
+        // pid文件路径, 启动参数 -Des.pidfile=/opt/elasticsearch-1.6.0/run/elasticsearch.pid
         final String pidFile = System.getProperty("es.pidfile", System.getProperty("es-pidfile"));
 
         if (pidFile != null) {
             try {
                 File fPidFile = new File(pidFile);
                 if (fPidFile.getParentFile() != null) {
+                    // 创建pid文件所在父文件夹
                     FileSystemUtils.mkdirs(fPidFile.getParentFile());
                 }
+                // 将jvm进程号写入pid文件
                 FileOutputStream outputStream = new FileOutputStream(fPidFile);
                 outputStream.write(Long.toString(JvmInfo.jvmInfo().pid()).getBytes(Charsets.UTF_8));
                 outputStream.close();
 
+                // 当虚拟机terminate时,删除pid文件
                 fPidFile.deleteOnExit();
             } catch (Exception e) {
                 String errorMessage = buildErrorMessage("pid", e);
@@ -204,6 +213,7 @@ public class Bootstrap {
             }
         }
 
+        // 只要es.foreground参数不为空,就前台运行
         boolean foreground = System.getProperty("es.foreground", System.getProperty("es-foreground")) != null;
         // handle the wrapper system property, if its a service, don't run as a service
         if (System.getProperty("wrapper.service", "XXX").equalsIgnoreCase("true")) {
