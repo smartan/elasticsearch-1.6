@@ -83,6 +83,10 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
             searchService.sendExecuteQuery(node, request, listener);
         }
 
+        /**
+         * QUERY_THEN_FETCH第二阶段FETCH和MERGE过程
+         * @throws Exception
+         */
         @Override
         protected void moveToSecondPhase() throws Exception {
             boolean useScroll = !useSlowScroll && request.scroll() != null;

@@ -94,13 +94,19 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             }
         }
 
+        // 根据search type,执行对应的Action
         if (searchRequest.searchType() == DFS_QUERY_THEN_FETCH) {
+            // 计算分布式词频以获得更准确的评分
             dfsQueryThenFetchAction.execute(searchRequest, listener);
         } else if (searchRequest.searchType() == SearchType.QUERY_THEN_FETCH) {
+            // 在第一阶段,查询被转发到所有涉及的分片,每个分片执行搜索并生成该分片的本地结果排序列表,每个分片都向协调节点返回足够的信息,以允许它合并并将分片级别结果重新排序为具有最大长度大小的全局排序结果集
+            // 在第二阶段期间,协调节点仅从相关分片请求文档内容(以及突出显示的片段,如果有的话)
             queryThenFetchAction.execute(searchRequest, listener);
         } else if (searchRequest.searchType() == SearchType.DFS_QUERY_AND_FETCH) {
+            // 请求针对单分片时,计算分布式词频以获得更准确的评分
             dfsQueryAndFetchAction.execute(searchRequest, listener);
         } else if (searchRequest.searchType() == SearchType.QUERY_AND_FETCH) {
+            // 当query_then_fetch请求仅针对单个分片时,会自动选择该模式
             queryAndFetchAction.execute(searchRequest, listener);
         } else if (searchRequest.searchType() == SearchType.SCAN) {
             scanAction.execute(searchRequest, listener);

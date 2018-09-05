@@ -174,6 +174,7 @@ public final class InternalNode implements Node {
         boolean success = false;
         try {
             ModulesBuilder modules = new ModulesBuilder();
+            // 执行Module的spawnModules()
             modules.add(new Version.Module(version));
             modules.add(new CacheRecyclerModule(settings));
             modules.add(new PageCacheRecyclerModule(settings));

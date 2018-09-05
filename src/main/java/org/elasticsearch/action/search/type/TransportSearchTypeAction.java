@@ -110,22 +110,32 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             this.request = request;
             this.listener = listener;
 
+            // 获取集群当前状态
             this.clusterState = clusterService.state();
+
+            // 获取集群节点
             nodes = clusterState.nodes();
 
             clusterState.blocks().globalBlockedRaiseException(ClusterBlockLevel.READ);
 
+            // 将提供的索引或别名(最终包含通配符表达式)转换为实际索引
             String[] concreteIndices = clusterState.metaData().concreteIndices(request.indicesOptions(), request.indices());
 
             for (String index : concreteIndices) {
                 clusterState.blocks().indexBlockedRaiseException(ClusterBlockLevel.READ, index);
             }
 
+            // 对每个待搜索的index,获取其所有的routing
             Map<String, Set<String>> routingMap = clusterState.metaData().resolveSearchRouting(request.routing(), request.indices());
 
+            // 通过routing可以计算需要搜索当前index的哪些shards
             shardsIts = clusterService.operationRouting().searchShards(clusterState, request.indices(), concreteIndices, routingMap, request.preference());
+
+            // 所需执行的shard总数
             expectedSuccessfulOps = shardsIts.size();
+
             // we need to add 1 for non active partition, since we count it in the total!
+            // 期望多少个shard给出响应
             expectedTotalOps = shardsIts.totalSizeWith1ForEmpty();
 
             firstResults = new AtomicArray<>(shardsIts.size());
@@ -143,6 +153,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             this.useSlowScroll = useSlowScroll;
         }
 
+        // 开始执行搜索
         public void start() {
             if (expectedSuccessfulOps == 0) {
                 // no search shards to search on, bail with empty response (it happens with search across _all with no indices around and consistent with broadcast operations)
@@ -154,6 +165,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
                 shardIndex++;
                 final ShardRouting shard = shardIt.nextOrNull();
                 if (shard != null) {
+                    // 执行第一阶段
                     performFirstPhase(shardIndex, shardIt, shard);
                 } else {
                     // really, no shards active in this group

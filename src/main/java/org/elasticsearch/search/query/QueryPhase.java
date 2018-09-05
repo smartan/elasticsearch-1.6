@@ -112,14 +112,16 @@ public class QueryPhase implements SearchPhase {
             TopDocs topDocs;
             int numDocs = searchContext.from() + searchContext.size();
 
+            // COUNT
             if (searchContext.searchType() == SearchType.COUNT || numDocs == 0) {
                 TotalHitCountCollector collector = new TotalHitCountCollector();
                 searchContext.searcher().search(query, collector);
                 topDocs = new TopDocs(collector.getTotalHits(), Lucene.EMPTY_SCORE_DOCS, 0);
             } else if (searchContext.searchType() == SearchType.SCAN) {
+                // SCAN
                 topDocs = searchContext.scanContext().execute(searchContext);
             } else {
-                // Perhaps have a dedicated scroll phase?
+                // Perhaps have a dedicated(专门的) scroll phase?
                 if (!searchContext.useSlowScroll() && searchContext.request().scroll() != null) {
                     numDocs = searchContext.size();
                     ScoreDoc lastEmittedDoc = searchContext.lastEmittedDoc();
@@ -154,6 +156,7 @@ public class QueryPhase implements SearchPhase {
                         for (RescoreSearchContext rescoreContext : searchContext.rescore()) {
                             numDocs = Math.max(rescoreContext.window(), numDocs);
                         }
+                        // 执行lucene搜索
                         topDocs = searchContext.searcher().search(query, numDocs);
                     }
                 }

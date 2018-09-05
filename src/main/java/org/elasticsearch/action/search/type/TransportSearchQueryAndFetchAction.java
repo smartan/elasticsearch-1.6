@@ -54,6 +54,7 @@ public class TransportSearchQueryAndFetchAction extends TransportSearchTypeActio
 
     @Override
     protected void doExecute(SearchRequest searchRequest, ActionListener<SearchResponse> listener) {
+        // 异步执行Action
         new AsyncAction(searchRequest, listener).start();
     }
 

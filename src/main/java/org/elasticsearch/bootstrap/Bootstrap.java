@@ -74,8 +74,10 @@ public class Bootstrap {
                 .put(InternalSettingsPreparer.IGNORE_SYSTEM_PROPERTIES_SETTING, true)
                 .build();
         NodeBuilder nodeBuilder = NodeBuilder.nodeBuilder().settings(nodeSettings).loadConfigSettings(false);
+        // 执行guice注入
         node = nodeBuilder.build();
         if (addShutdownHook) {
+            // 虚拟机关闭的时候,执行shutdown
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
@@ -252,9 +254,11 @@ public class Bootstrap {
             // fail if using broken version
             JVMCheck.check();
 
+            // 初始化InternalNode
             bootstrap.setup(true, tuple);
 
             stage = "Startup";
+            //启动es
             bootstrap.start();
 
             if (!foreground) {
