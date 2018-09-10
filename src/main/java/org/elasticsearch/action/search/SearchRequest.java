@@ -250,6 +250,7 @@ public class SearchRequest extends ActionRequest<SearchRequest> implements Indic
      * The source of the search request.
      */
     public SearchRequest source(SearchSourceBuilder sourceBuilder) {
+        // smile即二进制json,Jackson JSON库开发团队于2010年发布的数据格式,并在Jackson 1.6版本开始使用此格式
         this.source = sourceBuilder.buildAsBytes(Requests.CONTENT_TYPE);
         return this;
     }
