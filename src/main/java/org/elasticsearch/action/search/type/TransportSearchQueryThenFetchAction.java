@@ -93,7 +93,7 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
             sortedShardList = searchPhaseController.sortDocs(useScroll, firstResults);
             searchPhaseController.fillDocIdsToLoad(docIdsToLoad, sortedShardList);
 
-            if (docIdsToLoad.asList().isEmpty()) {
+            if (docIdsToLoad.asList().isEmpty()) { //Query结果为空
                 finishHim();
                 return;
             }
@@ -140,6 +140,7 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
             this.addShardFailure(shardIndex, shardTarget, t);
             successfulOps.decrementAndGet();
             if (counter.decrementAndGet() == 0) {
+                // 执行merge
                 finishHim();
             }
         }
@@ -148,11 +149,13 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
             threadPool.executor(ThreadPool.Names.SEARCH).execute(new ActionRunnable<SearchResponse>(listener) {
                 @Override
                 public void doRun() throws IOException {
+                    // 对结果进行merge
                     final InternalSearchResponse internalResponse = searchPhaseController.merge(sortedShardList, firstResults, fetchResults);
                     String scrollId = null;
                     if (request.scroll() != null) {
                         scrollId = TransportSearchHelper.buildScrollId(request.searchType(), firstResults, null);
                     }
+                    // 封装搜索响应,并对hits进行解压
                     listener.onResponse(new SearchResponse(internalResponse, scrollId, expectedSuccessfulOps, successfulOps.get(), buildTookInMillis(), buildShardFailures()));
                     releaseIrrelevantSearchContexts(firstResults, docIdsToLoad);
                 }

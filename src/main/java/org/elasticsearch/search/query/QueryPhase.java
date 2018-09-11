@@ -112,7 +112,7 @@ public class QueryPhase implements SearchPhase {
             TopDocs topDocs;
             int numDocs = searchContext.from() + searchContext.size();
 
-            // COUNT
+            // SearchType==Count或者from+size=0时执行Count,默认为QUERY_THEN_FETCH
             if (searchContext.searchType() == SearchType.COUNT || numDocs == 0) {
                 TotalHitCountCollector collector = new TotalHitCountCollector();
                 searchContext.searcher().search(query, collector);

@@ -106,8 +106,9 @@ public class RestSearchAction extends BaseRestHandler {
                 }
             }
         }
-
+        // 解析搜索参数
         searchRequest.extraSource(parseSearchSource(request));
+        // search_type默认QUERY_THEN_FETCH
         searchRequest.searchType(request.param("search_type"));
         searchRequest.queryCache(request.paramAsBoolean("query_cache", null));
 

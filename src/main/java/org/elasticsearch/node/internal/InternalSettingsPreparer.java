@@ -72,6 +72,7 @@ public class InternalSettingsPreparer {
      */
     public static Tuple<Settings, Environment> prepareSettings(Settings pSettings, boolean loadConfigSettings, Terminal terminal) {
         // ignore this prefixes when getting properties from es. and elasticsearch.
+        // 忽略的es配置前缀es.default.和elasticsearch.default.
         String[] ignorePrefixes = new String[]{"es.default.", "elasticsearch.default."};
         boolean useSystemProperties = !pSettings.getAsBoolean(IGNORE_SYSTEM_PROPERTIES_SETTING, false);
         // just create enough settings to build the environment

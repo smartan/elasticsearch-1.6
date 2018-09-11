@@ -294,6 +294,7 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
      */
     private void loadOrExecuteQueryPhase(final ShardSearchRequest request, final SearchContext context,
             final QueryPhase queryPhase) throws Exception {
+        // 从cache中加载查询结果
         final boolean canCache = indicesQueryCache.canCache(request, context);
         if (canCache) {
             indicesQueryCache.loadIntoContext(request, context, queryPhase);

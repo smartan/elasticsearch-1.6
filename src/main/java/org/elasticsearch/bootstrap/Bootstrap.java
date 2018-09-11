@@ -215,7 +215,7 @@ public class Bootstrap {
             }
         }
 
-        // 只要es.foreground参数不为空,就前台运行
+        // 只要es.foreground参数不为空,就前台运行,不设置时默认为false
         boolean foreground = System.getProperty("es.foreground", System.getProperty("es-foreground")) != null;
         // handle the wrapper system property, if its a service, don't run as a service
         if (System.getProperty("wrapper.service", "XXX").equalsIgnoreCase("true")) {
@@ -224,6 +224,7 @@ public class Bootstrap {
 
         Tuple<Settings, Environment> tuple = null;
         try {
+            // 初始化设置
             tuple = initialSettings(foreground);
             setupLogging(tuple);
         } catch (Exception e) {

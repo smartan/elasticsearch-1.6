@@ -224,6 +224,7 @@ public class SearchServiceTransportAction extends AbstractComponent {
     }
 
     public void sendExecuteQuery(DiscoveryNode node, final ShardSearchTransportRequest request, final SearchServiceListener<QuerySearchResultProvider> listener) {
+        // 本地节点即当前要执行的节点
         if (clusterService.state().nodes().localNodeId().equals(node.id())) {
             execute(new Callable<QuerySearchResultProvider>() {
                 @Override
@@ -232,6 +233,7 @@ public class SearchServiceTransportAction extends AbstractComponent {
                 }
             }, listener);
         } else {
+            // 发送请求执行远程节点搜索
             transportService.sendRequest(node, QUERY_ACTION_NAME, request, new BaseTransportResponseHandler<QuerySearchResultProvider>() {
 
                 @Override

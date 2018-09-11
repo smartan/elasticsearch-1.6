@@ -113,7 +113,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             // 获取集群当前状态
             this.clusterState = clusterService.state();
 
-            // 获取集群节点
+            // 获取集群节点信息
             nodes = clusterState.nodes();
 
             clusterState.blocks().globalBlockedRaiseException(ClusterBlockLevel.READ);
@@ -158,10 +158,10 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             if (expectedSuccessfulOps == 0) {
                 // no search shards to search on, bail with empty response (it happens with search across _all with no indices around and consistent with broadcast operations)
                 listener.onResponse(new SearchResponse(InternalSearchResponse.empty(), null, 0, 0, buildTookInMillis(), ShardSearchFailure.EMPTY_ARRAY));
-                return;
+                return; // 没有要执行的shard,直接返回
             }
             int shardIndex = -1;
-            for (final ShardIterator shardIt : shardsIts) {
+            for (final ShardIterator shardIt : shardsIts) {// 遍历每一个要执行的shard
                 shardIndex++;
                 final ShardRouting shard = shardIt.nextOrNull();
                 if (shard != null) {
@@ -180,7 +180,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
                 onFirstPhaseResult(shardIndex, null, null, shardIt, new NoShardAvailableActionException(shardIt.shardId()));
             } else {
                 final DiscoveryNode node = nodes.get(shard.currentNodeId());
-                if (node == null) {
+                if (node == null) { // shard不可用
                     onFirstPhaseResult(shardIndex, shard, null, shardIt, new NoShardAvailableActionException(shardIt.shardId()));
                 } else {
                     String[] filteringAliases = clusterState.metaData().filteringAliases(shard.index(), request.indices());

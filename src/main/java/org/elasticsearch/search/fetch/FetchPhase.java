@@ -114,7 +114,7 @@ public class FetchPhase implements SearchPhase {
                 // no fields specified, default to return source if no explicit indication
                 if (!context.hasScriptFields() && !context.hasFetchSourceContext()) {
                     context.fetchSourceContext(new FetchSourceContext(true));
-                }
+                }// 初始化fieldsVisitor
                 fieldsVisitor = context.sourceRequested() ? new UidAndSourceFieldsVisitor() : new JustUidFieldsVisitor();
             }
         } else if (context.fieldNames().isEmpty()) {
