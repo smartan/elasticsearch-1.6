@@ -239,7 +239,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
             @Override
             public ClusterState execute(ClusterState currentState) throws Exception {
                 // do the join on a different thread, the DiscoveryService waits for 30s anyhow till it is discovered
-                joinThreadControl.startNewThreadIfNotRunning();
+                joinThreadControl.startNewThreadIfNotRunning();  // 集群发现
                 return currentState;
             }
 
@@ -1080,7 +1080,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 // we give preference to nodes who have previously already joined the cluster. Those will
                 // have a cluster state in memory, including an up to date routing table (which is not persistent to disk
                 // by the gateway)
-                DiscoveryNode master = electMaster.electMaster(joinedOnceActiveNodes);
+                DiscoveryNode master = electMaster.electMaster(joinedOnceActiveNodes); // master节点选举
                 if (master != null) {
                     return master;
                 }

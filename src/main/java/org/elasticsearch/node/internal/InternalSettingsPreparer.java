@@ -72,31 +72,31 @@ public class InternalSettingsPreparer {
      */
     public static Tuple<Settings, Environment> prepareSettings(Settings pSettings, boolean loadConfigSettings, Terminal terminal) {
         // ignore this prefixes when getting properties from es. and elasticsearch.
-        // 忽略的es配置前缀es.default.和elasticsearch.default.
+        // 忽略es配置前缀es.default.和elasticsearch.default.
         String[] ignorePrefixes = new String[]{"es.default.", "elasticsearch.default."};
         boolean useSystemProperties = !pSettings.getAsBoolean(IGNORE_SYSTEM_PROPERTIES_SETTING, false);
         // just create enough settings to build the environment
         ImmutableSettings.Builder settingsBuilder = settingsBuilder().put(pSettings);
-        if (useSystemProperties) {
+        if (useSystemProperties) { // 优先加载default系统属性
             settingsBuilder.putProperties("elasticsearch.default.", System.getProperties())
                     .putProperties("es.default.", System.getProperties())
-                    .putProperties("elasticsearch.", System.getProperties(), ignorePrefixes)
+                    .putProperties("elasticsearch.", System.getProperties(), ignorePrefixes) // 加载相同前缀的系统属性,但忽略es.default.和elasticsearch.default.前缀
                     .putProperties("es.", System.getProperties(), ignorePrefixes);
         }
         settingsBuilder.replacePropertyPlaceholders();
-
-        Environment environment = new Environment(settingsBuilder.build());
+        // 获取环境变量,包括path.home=home、path.data=data、path.logs=logs、path.conf=config和path.work=work
+        Environment environment = new Environment(settingsBuilder.build()); //如果path.conf为空,则为path.home(default:user.dir)/config
 
         if (loadConfigSettings) {
             boolean loadFromEnv = true;
-            if (useSystemProperties) {
+            if (useSystemProperties) {// 默认为true
                 // if its default, then load it, but also load form env
-                if (Strings.hasText(System.getProperty("es.default.config"))) {
+                if (Strings.hasText(System.getProperty("es.default.config"))) { // 从系统属性中加载默认config配置
                     loadFromEnv = true;
                     settingsBuilder.loadFromUrl(environment.resolveConfig(System.getProperty("es.default.config")));
                 }
                 // if explicit, just load it and don't load from env
-                if (Strings.hasText(System.getProperty("es.config"))) {
+                if (Strings.hasText(System.getProperty("es.config"))) { // 如果系统中配置了es.config和elasticsearch.config,则不再加载.yml
                     loadFromEnv = false;
                     settingsBuilder.loadFromUrl(environment.resolveConfig(System.getProperty("es.config")));
                 }
@@ -105,10 +105,10 @@ public class InternalSettingsPreparer {
                     settingsBuilder.loadFromUrl(environment.resolveConfig(System.getProperty("elasticsearch.config")));
                 }
             }
-            if (loadFromEnv) {
+            if (loadFromEnv) { // 从es.default.config加载配置后需要从.yml, .yaml, .json, .properties中继续加载配置
                 for (String allowedSuffix : ALLOWED_SUFFIXES) {
                     try {
-                        settingsBuilder.loadFromUrl(environment.resolveConfig("elasticsearch" + allowedSuffix));
+                        settingsBuilder.loadFromUrl(environment.resolveConfig("elasticsearch" + allowedSuffix)); // config目录下的elasticsearch.yml文件
                     } catch (FailedToResolveConfigException e) {
                         // ignore
                     }
@@ -117,7 +117,7 @@ public class InternalSettingsPreparer {
         }
 
         settingsBuilder.put(pSettings);
-        if (useSystemProperties) {
+        if (useSystemProperties) { // 除了es.default., elasticsearch.default. ,使用相同前缀的系统属性覆盖settingsBuilder
             settingsBuilder.putProperties("elasticsearch.", System.getProperties(), ignorePrefixes)
                     .putProperties("es.", System.getProperties(), ignorePrefixes);
         }
@@ -134,7 +134,7 @@ public class InternalSettingsPreparer {
         settingsBuilder.replacePropertyPlaceholders();
 
         // check if name is set in settings, if not look for system property and set it
-        if (settingsBuilder.get("name") == null) {
+        if (settingsBuilder.get("name") == null) {  // 如果settingsBuilder中name属性为空,则使用系统的name属性
             String name = System.getProperty("name");
             if (name != null) {
                 settingsBuilder.put("name", name);
@@ -142,7 +142,7 @@ public class InternalSettingsPreparer {
         }
 
         // put the cluster name
-        if (settingsBuilder.get(ClusterName.SETTING) == null) {
+        if (settingsBuilder.get(ClusterName.SETTING) == null) { // 如果集群名为空,则设置为默认值elasticsearch
             settingsBuilder.put(ClusterName.SETTING, ClusterName.DEFAULT.value());
         }
 
@@ -153,7 +153,7 @@ public class InternalSettingsPreparer {
             final String name = settings.get("node.name");
             if (name == null || name.isEmpty()) {
                 settings = settingsBuilder().put(settings)
-                        .put("name", Names.randomNodeName(environment.resolveConfig("names.txt")))
+                        .put("name", Names.randomNodeName(environment.resolveConfig("names.txt"))) // 从names.txt中产生随机节点名称
                         .build();
             } else {
                 settings = settingsBuilder().put(settings)

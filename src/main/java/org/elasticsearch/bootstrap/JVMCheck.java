@@ -114,7 +114,7 @@ public class JVMCheck {
             Loggers.getLogger(JVMCheck.class).warn("bypassing jvm version check for version [{}], this can result in data corruption!", Constants.JAVA_VERSION);
         } else if ("Oracle Corporation".equals(Constants.JVM_VENDOR)) {
             HotspotBug bug = JVM_BROKEN_HOTSPOT_VERSIONS.get(Constants.JVM_VERSION);
-            if (bug != null) {
+            if (bug != null) { // wordAround为-XX:-UseLoopPredicate或者-XX:-UseSuperWord
                 if (bug.workAround != null && ManagementFactory.getRuntimeMXBean().getInputArguments().contains(bug.workAround)) {
                     Loggers.getLogger(JVMCheck.class).warn(bug.getWarningMessage());
                 } else {

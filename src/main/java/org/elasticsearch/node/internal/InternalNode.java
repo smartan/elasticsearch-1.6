@@ -134,7 +134,7 @@ public final class InternalNode implements Node {
 
     public InternalNode(Settings preparedSettings, boolean loadConfigSettings) throws ElasticsearchException {
         final Settings pSettings = settingsBuilder().put(preparedSettings)
-                .put(Client.CLIENT_TYPE_SETTING, CLIENT_TYPE).build();
+                .put(Client.CLIENT_TYPE_SETTING, CLIENT_TYPE).build(); //preparedSettings即为InternalSettingsPreparer.prepareSettings的settings
         Tuple<Settings, Environment> tuple = InternalSettingsPreparer.prepareSettings(pSettings, loadConfigSettings);
         tuple = new Tuple<>(TribeService.processSettings(tuple.v1()), tuple.v2());
 
@@ -257,7 +257,7 @@ public final class InternalNode implements Node {
         injector.getInstance(IndicesTTLService.class).start();
         injector.getInstance(RiversManager.class).start();
         injector.getInstance(SnapshotsService.class).start();
-        injector.getInstance(TransportService.class).start();
+        injector.getInstance(TransportService.class).start();  // NettyTransport.doStart()
         injector.getInstance(ClusterService.class).start();
         injector.getInstance(RoutingService.class).start();
         injector.getInstance(SearchService.class).start();
@@ -267,7 +267,7 @@ public final class InternalNode implements Node {
         // TODO hack around circular dependecncies problems
         injector.getInstance(LocalGatewayAllocator.class).setReallocation(injector.getInstance(ClusterService.class), injector.getInstance(AllocationService.class));
 
-        DiscoveryService discoService = injector.getInstance(DiscoveryService.class).start();
+        DiscoveryService discoService = injector.getInstance(DiscoveryService.class).start(); // ZenDiscovery.doStart
         discoService.waitForInitialState();
 
         // gateway should start after disco, so it can try and recovery from gateway on "start"
