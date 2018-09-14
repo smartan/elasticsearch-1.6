@@ -405,7 +405,7 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
                         internal = true;
                     }
                 }
-                if (internal) {
+                if (internal) { //内部ping
                     StreamInput input = CachedStreamInput.cachedHandles(new BytesStreamInput(new BytesArray(data.toBytes(), INTERNAL_HEADER.length, data.length() - INTERNAL_HEADER.length)));
                     Version version = Version.readVersion(input);
                     input.setVersion(version);
@@ -413,6 +413,7 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
                     clusterName = ClusterName.readClusterName(input);
                     requestingNodeX = readNode(input);
                 } else {
+                    // 猜测数据格式JSON、SMILE、YAML和CBOR
                     xContentType = XContentFactory.xContentType(data);
                     if (xContentType != null) {
                         // an external ping
@@ -480,6 +481,7 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
                 builder.startObject("version").field("number", version.number()).field("snapshot_build", version.snapshot).endObject();
                 builder.field("transport_address", localNode.address().toString());
 
+                // 保存节点信息
                 if (contextProvider.nodeService() != null) {
                     for (Map.Entry<String, String> attr : contextProvider.nodeService().attributes().entrySet()) {
                         builder.field(attr.getKey(), attr.getValue());
@@ -493,6 +495,8 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
                 builder.endObject();
 
                 builder.endObject().endObject();
+
+                // 发送响应数据
                 multicastChannel.send(builder.bytes());
                 if (logger.isTraceEnabled()) {
                     logger.trace("sending external ping response {}", builder.string());
@@ -506,12 +510,15 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
             if (!pingEnabled || multicastChannel == null) {
                 return;
             }
+            // 集群中的节点信息
             final DiscoveryNodes discoveryNodes = contextProvider.nodes();
+            // 发送请求的节点
             final DiscoveryNode requestingNode = requestingNodeX;
             if (requestingNode.id().equals(discoveryNodes.localNodeId())) {
                 // that's me, ignore
                 return;
             }
+            // 忽略不同集群名的节点
             if (!requestClusterName.equals(clusterName)) {
                 if (logger.isTraceEnabled()) {
                     logger.trace("[{}] received ping_request from [{}], but wrong cluster_name [{}], expected [{}], ignoring",
@@ -520,20 +527,25 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
                 return;
             }
             // don't connect between two client nodes, no need for that...
+            // localNode和requestingNode都是ClientNode
             if (!discoveryNodes.localNode().shouldConnectTo(requestingNode)) {
                 if (logger.isTraceEnabled()) {
                     logger.trace("[{}] received ping_request from [{}], both are client nodes, ignoring", id, requestingNode, requestClusterName);
                 }
                 return;
             }
+
+            // 构造ping响应结果
             final MulticastPingResponse multicastPingResponse = new MulticastPingResponse();
             multicastPingResponse.id = id;
+            // discoveryNodes.localNode()即接收响应的节点
             multicastPingResponse.pingResponse = new PingResponse(discoveryNodes.localNode(), discoveryNodes.masterNode(), clusterName, contextProvider.nodeHasJoinedClusterOnce());
 
             if (logger.isTraceEnabled()) {
                 logger.trace("[{}] received ping_request from [{}], sending {}", id, requestingNode, multicastPingResponse.pingResponse);
             }
 
+            // 连接的节点中不包含请求节点
             if (!transportService.nodeConnected(requestingNode)) {
                 // do the connect and send on a thread pool
                 threadPool.generic().execute(new Runnable() {
@@ -541,6 +553,7 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
                     public void run() {
                         // connect to the node if possible
                         try {
+                            // 将请求节点加入集群
                             transportService.connectToNode(requestingNode);
                             transportService.sendRequest(requestingNode, ACTION_NAME, multicastPingResponse, new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
                                 @Override

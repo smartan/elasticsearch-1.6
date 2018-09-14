@@ -232,7 +232,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
     protected void doStart() throws ElasticsearchException {
         nodesFD.setLocalNode(clusterService.localNode());
         joinThreadControl.start();
-        pingService.start();
+        pingService.start(); // ZenPing.doStart()
 
         // start the join thread from a cluster state update. See {@link JoinThreadControl} for details.
         clusterService.submitStateUpdateTask("initial_join", new ClusterStateNonMasterUpdateTask() {
@@ -1009,7 +1009,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
             }
             logger.trace(sb.toString());
         }
-
+        // 过滤掉ClientNode和DataNode
         // filter responses
         List<ZenPing.PingResponse> pingResponses = Lists.newArrayList();
         for (ZenPing.PingResponse pingResponse : fullPingResponses) {
@@ -1034,14 +1034,15 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
             }
             logger.debug(sb.toString());
         }
-
+        // 从ping响应结果中选择类型为master的节点(不包括local node)
         final DiscoveryNode localNode = clusterService.localNode();
         List<DiscoveryNode> pingMasters = newArrayList();
         for (ZenPing.PingResponse pingResponse : pingResponses) {
             if (pingResponse.master() != null) {
                 // We can't include the local node in pingMasters list, otherwise we may up electing ourselves without
                 // any check / verifications from other nodes in ZenDiscover#innerJoinCluster()
-                if (!localNode.equals(pingResponse.master())) {
+                if (!localNode.equals(pingResponse.master())) { // 排除local节点
+                    // 若pingMasters的size大于1,则集群中有多个master，集群会不稳定出现脑裂
                     pingMasters.add(pingResponse.master());
                 }
             }
@@ -1051,47 +1052,49 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
         Set<DiscoveryNode> activeNodes = Sets.newHashSet();
         // nodes discovered who has previously been part of the cluster and do not ping for the very first time
         Set<DiscoveryNode> joinedOnceActiveNodes = Sets.newHashSet();
-        if (localNode.masterNode()) {
+        if (localNode.masterNode()) { //local节点是否能成为master节点(有master属性或者不是ClientNode)
             activeNodes.add(localNode);
-            long joinsCounter = clusterJoinsCounter.get();
+            long joinsCounter = clusterJoinsCounter.get(); // 节点加入集群或者选举自己为master的次数
             if (joinsCounter > 0) {
                 logger.trace("adding local node to the list of active nodes who has previously joined the cluster (joins counter is [{}})", joinsCounter);
-                joinedOnceActiveNodes.add(localNode);
+                joinedOnceActiveNodes.add(localNode); // local节点加入选举列表
             }
         }
-
+        // local节点的版本号
         Version minimumPingVersion = localNode.version();
         for (ZenPing.PingResponse pingResponse : pingResponses) {
             activeNodes.add(pingResponse.node());
             minimumPingVersion = Version.smallest(pingResponse.node().version(), minimumPingVersion);
-            if (pingResponse.hasJoinedOnce() != null && pingResponse.hasJoinedOnce()) {
+            if (pingResponse.hasJoinedOnce() != null && pingResponse.hasJoinedOnce()) { // 节点以前加入过集群(版本号要大于等于1.4.0)
                 assert pingResponse.node().getVersion().onOrAfter(Version.V_1_4_0_Beta1) : "ping version [" + pingResponse.node().version() + "]< 1.4.0 while having hasJoinedOnce == true";
                 joinedOnceActiveNodes.add(pingResponse.node());
             }
         }
-
+        // 校验版本号
         if (minimumPingVersion.before(Version.V_1_4_0_Beta1)) {
             logger.trace("ignoring joined once flags in ping responses, minimum ping version [{}]", minimumPingVersion);
             joinedOnceActiveNodes.clear();
         }
-
+        // 若ping响应中没有为master的,则按照顺序从加入过集群和活着的节点中选举master
         if (pingMasters.isEmpty()) {
+            // 或者的节点数要大于minimumMasterNodes值,由discovery.zen.minimum_master_nodes设置,一般为nodes.size()/2+1
             if (electMaster.hasEnoughMasterNodes(activeNodes)) {
                 // we give preference to nodes who have previously already joined the cluster. Those will
                 // have a cluster state in memory, including an up to date routing table (which is not persistent to disk
                 // by the gateway)
-                DiscoveryNode master = electMaster.electMaster(joinedOnceActiveNodes); // master节点选举
+                // 从加入过集群的节点中进行master选举
+                DiscoveryNode master = electMaster.electMaster(joinedOnceActiveNodes);
                 if (master != null) {
                     return master;
                 }
-                return electMaster.electMaster(activeNodes);
+                return electMaster.electMaster(activeNodes); // 从全部活着的节点中进行master选举
             } else {
                 // if we don't have enough master nodes, we bail, because there are not enough master to elect from
                 logger.trace("not enough master nodes [{}]", activeNodes);
                 return null;
             }
         } else {
-
+            // ping响应中有master节点,则优先从master中选举
             assert !pingMasters.contains(localNode) : "local node should never be elected as master when other nodes indicate an active master";
             // lets tie break between discovered nodes
             return electMaster.electMaster(pingMasters);
