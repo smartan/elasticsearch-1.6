@@ -371,13 +371,13 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 public ClusterState execute(ClusterState currentState) {
                     // Take into account the previous known nodes, if they happen not to be available
                     // then fault detection will remove these nodes.
-
+                    // 如果当前的master不是local节点，则有可能已经选举出master，不更新集群状态
                     if (currentState.nodes().masterNode() != null) {
                         // TODO can we tie break here? we don't have a remote master cluster state version to decide on
                         logger.trace("join thread elected local node as master, but there is already a master in place: {}", currentState.nodes().masterNode());
                         return currentState;
                     }
-
+                    // 通知其他节点当前节点是master
                     DiscoveryNodes.Builder builder = new DiscoveryNodes.Builder(currentState.nodes()).masterNodeId(currentState.nodes().localNode().id());
                     // update the fact that we are the master...
                     ClusterBlocks clusterBlocks = ClusterBlocks.builder().blocks(currentState.blocks()).removeGlobalBlock(discoverySettings.getNoMasterBlock()).build();
@@ -390,17 +390,20 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
 
                 @Override
                 public void onFailure(String source, Throwable t) {
+                    // 执行失败，重新执行innerJoinCluster()进行master选举及集群状态更新
                     logger.error("unexpected failure during [{}]", t, source);
                     joinThreadControl.markThreadAsDoneAndStartNew(currentThread);
                 }
 
                 @Override
                 public void clusterStateProcessed(String source, ClusterState oldState, ClusterState newState) {
+                    // 当前节点是master，将加入集群线程设置为done
                     if (newState.nodes().localNodeMaster()) {
                         // we only starts nodesFD if we are master (it may be that we received a cluster state while pinging)
                         joinThreadControl.markThreadAsDone(currentThread);
                         nodesFD.updateNodesAndPing(newState); // start the nodes FD
                     } else {
+                        // 当前节点不是master，可能是在ping的过程中其他节点发布了新的集群状态，那么当前节点执行重新执行innerJoinCluster()开始重新加入集群
                         // if we're not a master it means another node published a cluster state while we were pinging
                         // make sure we go through another pinging round and actively join it
                         joinThreadControl.markThreadAsDoneAndStartNew(currentThread);
@@ -412,6 +415,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 }
             });
         } else {
+            // local节点不是master,发送加入集群的请求
             // send join request
             final boolean success = joinElectedMaster(masterNode);
 
@@ -421,25 +425,27 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 @Override
                 public ClusterState execute(ClusterState currentState) throws Exception {
                     if (!success) {
+                        // 加入集群失败,重新加入集群
                         // failed to join. Try again...
                         joinThreadControl.markThreadAsDoneAndStartNew(currentThread);
                         return currentState;
                     }
-
                     if (currentState.getNodes().masterNode() == null) {
                         // Post 1.3.0, the master should publish a new cluster state before acking our join request. we now should have
                         // a valid master.
+                        // 在响应请求之前,master应该发布新集群状态,在次之间,没有合法master,重新开始选举master并加入集群
                         logger.debug("no master node is set, despite of join request completing. retrying pings.");
                         joinThreadControl.markThreadAsDoneAndStartNew(currentThread);
                         return currentState;
                     }
-
+                    // 当前集群master与选举的不一致,重新加入集群
                     if (!currentState.getNodes().masterNode().equals(finalMasterNode)) {
                         return joinThreadControl.stopRunningThreadAndRejoin(currentState, "master_switched_while_finalizing_join");
                     }
 
                     // Note: we do not have to start master fault detection here because it's set at {@link #handleNewClusterStateFromMaster }
                     // when the first cluster state arrives.
+                    // 加入集群成功,结束加入集群线程
                     joinThreadControl.markThreadAsDone(currentThread);
                     return currentState;
                 }
@@ -460,6 +466,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
      */
     private boolean joinElectedMaster(DiscoveryNode masterNode) {
         try {
+            // 确保能连得上master，建立TCP连接
             // first, make sure we can connect to the master
             transportService.connectToNode(masterNode);
         } catch (Exception e) {

@@ -251,18 +251,18 @@ public final class InternalNode implements Node {
         }
 
         injector.getInstance(MappingUpdatedAction.class).start();  // MappingUpdatedAction.start()
-        injector.getInstance(IndicesService.class).start(); // IndicesService.doStart()
+        injector.getInstance(IndicesService.class).start(); // IndicesService.doStart()->Empty
         injector.getInstance(IndexingMemoryController.class).start();  // IndexingMemoryController.doStart()
         injector.getInstance(IndicesClusterStateService.class).start(); // IndicesClusterStateService.doStart()
         injector.getInstance(IndicesTTLService.class).start();  // IndicesTTLService.doStart()
         injector.getInstance(RiversManager.class).start();  // RiversManager.doStart()
-        injector.getInstance(SnapshotsService.class).start();   // SnapshotsService.doStart()
-        injector.getInstance(TransportService.class).start();  // NettyTransport.doStart()
+        injector.getInstance(SnapshotsService.class).start();   // SnapshotsService.doStart()->Empty
+        injector.getInstance(TransportService.class).start();  // TransportService.doStart()->NettyTransport.doStart()
         injector.getInstance(ClusterService.class).start();  // InternalClusterService.doStart()
-        injector.getInstance(RoutingService.class).start();  // RoutingService.doStart()
-        injector.getInstance(SearchService.class).start();  // SearchService.doStart()
+        injector.getInstance(RoutingService.class).start();  // RoutingService.doStart()->Empty
+        injector.getInstance(SearchService.class).start();  // SearchService.doStart()->Empty
         injector.getInstance(MonitorService.class).start(); // MonitorService.doStart()
-        injector.getInstance(RestController.class).start(); // RestController.doStart()
+        injector.getInstance(RestController.class).start(); // RestController.doStart()->Empty
 
         // TODO hack around circular dependecncies problems
         injector.getInstance(LocalGatewayAllocator.class).setReallocation(injector.getInstance(ClusterService.class), injector.getInstance(AllocationService.class));
@@ -271,14 +271,14 @@ public final class InternalNode implements Node {
         discoService.waitForInitialState();
 
         // gateway should start after disco, so it can try and recovery from gateway on "start"
-        injector.getInstance(GatewayService.class).start();
+        injector.getInstance(GatewayService.class).start(); // GatewayService.doStart()
 
         if (settings.getAsBoolean("http.enabled", true)) {
-            injector.getInstance(HttpServer.class).start();
+            injector.getInstance(HttpServer.class).start(); // HttpServer.doStart()->NettyHttpServerTransport.doStart()
         }
-        injector.getInstance(BulkUdpService.class).start();
-        injector.getInstance(ResourceWatcherService.class).start();
-        injector.getInstance(TribeService.class).start();
+        injector.getInstance(BulkUdpService.class).start(); // BulkUdpService.doStart()
+        injector.getInstance(ResourceWatcherService.class).start(); // ResourceWatcherService.doStart()
+        injector.getInstance(TribeService.class).start(); // TribeService.doStart()
 
         logger.info("started");
 

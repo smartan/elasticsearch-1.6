@@ -177,6 +177,7 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
 
     @Override
     public void ping(final PingListener listener, final TimeValue timeout) {
+        logger.info("start ping [{}], timeout millis [{}]", System.currentTimeMillis(), timeout.millis());
         if (!pingEnabled || multicastChannel == null) {
             threadPool.generic().execute(new Runnable() {
                 @Override
@@ -250,6 +251,7 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
     }
 
     private void sendPingRequest(int id) {
+        logger.info("ping time [{}], id [{}]", System.currentTimeMillis(), id);
         try {
             BytesStreamOutput bStream = new BytesStreamOutput(PING_SIZE_ESTIMATE);
             StreamOutput out = new HandlesStreamOutput(bStream);
