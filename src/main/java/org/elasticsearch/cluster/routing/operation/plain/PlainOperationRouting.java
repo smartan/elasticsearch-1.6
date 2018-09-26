@@ -117,9 +117,11 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
 
     @Override
     public GroupShardsIterator searchShards(ClusterState clusterState, String[] indices, String[] concreteIndices, @Nullable Map<String, Set<String>> routing, @Nullable String preference) throws IndexMissingException {
+        // 计算索引所在的shards
         final Set<IndexShardRoutingTable> shards = computeTargetedShards(clusterState, concreteIndices, routing);
         final Set<ShardIterator> set = new HashSet<>(shards.size());
         for (IndexShardRoutingTable shard : shards) {
+            // 获取查询的shard偏好
             ShardIterator iterator = preferenceActiveShardIterator(shard, clusterState.nodes().localNodeId(), clusterState.nodes(), preference);
             if (iterator != null) {
                 set.add(iterator);
@@ -135,11 +137,15 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
         final Set<IndexShardRoutingTable> set = new HashSet<>();
         // we use set here and not list since we might get duplicates
         for (String index : concreteIndices) {
+            // 获取索引路由表
+            // clusterState.routingTable().index(index)
             final IndexRoutingTable indexRouting = indexRoutingTable(clusterState, index);
             final Set<String> effectiveRouting = routing.get(index);
             if (effectiveRouting != null) {
                 for (String r : effectiveRouting) {
-                    int shardId = shardId(clusterState, index, null, null, r);
+                    // hash(routing) % number_of_shards
+                    int shardId = shardId(clusterState, index, null, null, r); // clusterState, index, type, id, routing
+                    // 目的shard
                     IndexShardRoutingTable indexShard = indexRouting.shard(shardId);
                     if (indexShard == null) {
                         throw new IndexShardMissingException(new ShardId(index, shardId));
@@ -157,7 +163,9 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
     }
 
     private ShardIterator preferenceActiveShardIterator(IndexShardRoutingTable indexShard, String localNodeId, DiscoveryNodes nodes, @Nullable String preference) {
+        // 没有设置preference
         if (preference == null || preference.isEmpty()) {
+            // cluster.routing.allocation.awareness.attributes
             String[] awarenessAttributes = awarenessAllocationDecider.awarenessAttributes();
             if (awarenessAttributes.length == 0) {
                 return indexShard.activeInitializingShardsRandomIt();
@@ -264,13 +272,15 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
 
     private int shardId(ClusterState clusterState, String index, String type, @Nullable String id, @Nullable String routing) {
         if (routing == null) {
+            // cluster.routing.operation.use_type
             if (!useType) {
                 return Math.abs(hash(id) % indexMetaData(clusterState, index).numberOfShards());
             } else {
                 return Math.abs(hash(type, id) % indexMetaData(clusterState, index).numberOfShards());
             }
         }
-        return Math.abs(hash(routing) % indexMetaData(clusterState, index).numberOfShards());
+        // routing的hash值%分片数
+        return Math.abs(hash(routing) % indexMetaData(clusterState, index).numberOfShards()); // index.number_of_shards
     }
 
     protected int hash(String routing) {

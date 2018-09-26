@@ -158,7 +158,8 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             if (expectedSuccessfulOps == 0) {
                 // no search shards to search on, bail with empty response (it happens with search across _all with no indices around and consistent with broadcast operations)
                 listener.onResponse(new SearchResponse(InternalSearchResponse.empty(), null, 0, 0, buildTookInMillis(), ShardSearchFailure.EMPTY_ARRAY));
-                return; // 没有要执行的shard,直接返回
+                // 没有要执行的shard,直接返回
+                return;
             }
             int shardIndex = -1;
             for (final ShardIterator shardIt : shardsIts) {// 遍历每一个要执行的shard
