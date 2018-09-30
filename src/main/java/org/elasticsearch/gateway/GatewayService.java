@@ -139,19 +139,24 @@ public class GatewayService extends AbstractLifecycleComponent<GatewayService> i
     }
 
     protected void checkStateMeetsSettingsAndMaybeRecover(ClusterState state, boolean asyncRecovery) {
+        // 获取节点列表
         DiscoveryNodes nodes = state.nodes();
         if (state.blocks().hasGlobalBlock(discoveryService.getNoMasterBlock())) {
             logger.debug("not recovering from gateway, no master elected yet");
         } else if (recoverAfterNodes != -1 && (nodes.masterAndDataNodes().size()) < recoverAfterNodes) {
+            // recoverAfterNodes = componentSettings.getAsInt("recover_after_nodes", -1)
             logger.debug("not recovering from gateway, nodes_size (data+master) [" + nodes.masterAndDataNodes().size() + "] < recover_after_nodes [" + recoverAfterNodes + "]");
         } else if (recoverAfterDataNodes != -1 && nodes.dataNodes().size() < recoverAfterDataNodes) {
+            // recoverAfterDataNodes = componentSettings.getAsInt("recover_after_data_nodes", -1)
             logger.debug("not recovering from gateway, nodes_size (data) [" + nodes.dataNodes().size() + "] < recover_after_data_nodes [" + recoverAfterDataNodes + "]");
         } else if (recoverAfterMasterNodes != -1 && nodes.masterNodes().size() < recoverAfterMasterNodes) {
+            // componentSettings.getAsInt("recover_after_master_nodes", settings.getAsInt("discovery.zen.minimum_master_nodes", -1))
             logger.debug("not recovering from gateway, nodes_size (master) [" + nodes.masterNodes().size() + "] < recover_after_master_nodes [" + recoverAfterMasterNodes + "]");
         } else {
             boolean enforceRecoverAfterTime;
             String reason;
             if (expectedNodes == -1 && expectedMasterNodes == -1 && expectedDataNodes == -1) {
+                // expected_nodes expected_master_nodes expected_data_nodes
                 // no expected is set, honor the setting if they are there
                 enforceRecoverAfterTime = true;
                 reason = "recover_after_time was set to [" + recoverAfterTime + "]";
@@ -177,6 +182,7 @@ public class GatewayService extends AbstractLifecycleComponent<GatewayService> i
     private void performStateRecovery(boolean asyncRecovery, boolean enforceRecoverAfterTime, String reason) {
         final Gateway.GatewayStateRecoveredListener recoveryListener = new GatewayRecoveryListener(new CountDownLatch(1));
 
+        // 节点数不满足条件,按照时间段恢复
         if (enforceRecoverAfterTime && recoverAfterTime != null) {
             if (scheduledRecovery.compareAndSet(false, true)) {
                 logger.info("delaying initial state recovery for [{}]. {}", recoverAfterTime, reason);
@@ -185,13 +191,16 @@ public class GatewayService extends AbstractLifecycleComponent<GatewayService> i
                     public void run() {
                         if (recovered.compareAndSet(false, true)) {
                             logger.info("recover_after_time [{}] elapsed. performing state recovery...", recoverAfterTime);
+                            // delay一段时间后恢复
                             gateway.performStateRecovery(recoveryListener);
                         }
                     }
                 });
             }
         } else {
+            // 如果recovered是false,则修改为true,并返回是否修改成功
             if (recovered.compareAndSet(false, true)) {
+                // 只有集群状态改变时才是true
                 if (asyncRecovery) {
                     threadPool.generic().execute(new Runnable() {
                         @Override
@@ -259,6 +268,7 @@ public class GatewayService extends AbstractLifecycleComponent<GatewayService> i
                     // now, reroute
                     RoutingAllocation.Result routingResult = allocationService.reroute(ClusterState.builder(updatedState).routingTable(routingTableBuilder).build());
 
+                    // 恢复cluster state和routing table
                     return ClusterState.builder(updatedState).routingResult(routingResult).build();
                 }
 

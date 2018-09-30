@@ -38,7 +38,7 @@ public class LatchedActionListener<T> implements ActionListener<T> {
     @Override
     public void onResponse(T t) {
         try {
-            delegate.onResponse(t);
+            delegate.onResponse(t); // onResponse -> InternalClusterInfoService.ClusterInfoUpdateJob.run()
         } finally {
             latch.countDown();
         }

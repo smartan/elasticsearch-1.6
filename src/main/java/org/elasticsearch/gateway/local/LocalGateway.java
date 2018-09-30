@@ -98,13 +98,16 @@ public class LocalGateway extends AbstractLifecycleComponent<Gateway> implements
 
     @Override
     public void performStateRecovery(final GatewayStateRecoveredListener listener) throws GatewayException {
+        // 获取master节点id
         ObjectOpenHashSet<String> nodesIds = ObjectOpenHashSet.from(clusterService.state().nodes().masterNodes().keys());
         logger.trace("performing state recovery from {}", nodesIds);
+        // 获取节点状态
         TransportNodesListGatewayMetaState.NodesLocalGatewayMetaState nodesState = listGatewayMetaState.list(nodesIds.toArray(String.class), null).actionGet();
 
-
+        // 需要的节点数, 支持quorum quorum-1 one full full-1和整数值
         int requiredAllocation = 1;
         try {
+            // componentSettings.get("initial_meta", settings.get("discovery.zen.minimum_master_nodes", "1"))
             if ("quorum".equals(initialMeta)) {
                 if (nodesIds.size() > 2) {
                     requiredAllocation = (nodesIds.size() / 2) + 1;
@@ -128,12 +131,14 @@ public class LocalGateway extends AbstractLifecycleComponent<Gateway> implements
             logger.warn("failed to derived initial_meta from value {}", initialMeta);
         }
 
+        // 有失败的节点
         if (nodesState.failures().length > 0) {
             for (FailedNodeException failedNodeException : nodesState.failures()) {
                 logger.warn("failed to fetch state from node", failedNodeException);
             }
         }
 
+        // 要恢复的索引
         ObjectFloatOpenHashMap<String> indices = new ObjectFloatOpenHashMap<>();
         MetaData electedGlobalState = null;
         int found = 0;
@@ -151,6 +156,7 @@ public class LocalGateway extends AbstractLifecycleComponent<Gateway> implements
                 indices.addTo(cursor.value.index(), 1);
             }
         }
+        // 判断节点数是否满足条件
         if (found < requiredAllocation) {
             listener.onFailure("found [" + found + "] metadata states, required [" + requiredAllocation + "]");
             return;
@@ -187,7 +193,9 @@ public class LocalGateway extends AbstractLifecycleComponent<Gateway> implements
                 }
             }
         }
+        // 恢复集群名
         ClusterState.Builder builder = ClusterState.builder(clusterName);
+        // 恢复meta data
         builder.metaData(metaDataBuilder);
         listener.onSuccess(builder.build());
     }

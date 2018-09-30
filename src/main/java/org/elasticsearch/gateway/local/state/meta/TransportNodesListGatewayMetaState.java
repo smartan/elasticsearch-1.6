@@ -62,7 +62,7 @@ public class TransportNodesListGatewayMetaState extends TransportNodesOperationA
     }
 
     public ActionFuture<NodesLocalGatewayMetaState> list(String[] nodesIds, @Nullable TimeValue timeout) {
-        return execute(new Request(nodesIds).timeout(timeout));
+        return execute(new Request(nodesIds).timeout(timeout)); // execute()->TransportNodesOperationAction.doExecute()
     }
 
     @Override

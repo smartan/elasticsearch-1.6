@@ -117,7 +117,7 @@ public abstract class TransportNodesOperationAction<Request extends NodesOperati
         }
 
         private void start() {
-            if (nodesIds.length == 0) {
+            if (nodesIds.length == 0) { // 集群中的节点
                 // nothing to notify
                 threadPool.generic().execute(new Runnable() {
                     @Override
@@ -131,17 +131,19 @@ public abstract class TransportNodesOperationAction<Request extends NodesOperati
             if (request.timeout() != null) {
                 transportRequestOptions.withTimeout(request.timeout());
             }
+            // 不启用压缩
             transportRequestOptions.withCompress(transportCompress());
-            for (int i = 0; i < nodesIds.length; i++) {
+            for (int i = 0; i < nodesIds.length; i++) { // 遍历集群中的节点
                 final String nodeId = nodesIds[i];
                 final int idx = i;
                 final DiscoveryNode node = clusterState.nodes().nodes().get(nodeId);
                 try {
+                    // 如果是local节点
                     if (nodeId.equals("_local") || nodeId.equals(clusterState.nodes().localNodeId())) {
                         threadPool.executor(executor()).execute(new Runnable() {
                             @Override
                             public void run() {
-                                try {
+                                try { // nodeOperation() -> TransportNodesStatsAction.nodeOperation()
                                     onOperation(idx, nodeOperation(newNodeRequest(clusterState.nodes().localNodeId(), request)));
                                 } catch (Throwable e) {
                                     onFailure(idx, clusterState.nodes().localNodeId(), e);
@@ -149,6 +151,7 @@ public abstract class TransportNodesOperationAction<Request extends NodesOperati
                             }
                         });
                     } else if (nodeId.equals("_master")) {
+                        // 如果是master节点
                         threadPool.executor(executor()).execute(new Runnable() {
                             @Override
                             public void run() {
@@ -160,12 +163,15 @@ public abstract class TransportNodesOperationAction<Request extends NodesOperati
                             }
                         });
                     } else {
+                        // 节点为null
                         if (node == null) {
                             onFailure(idx, nodeId, new NoSuchNodeException(nodeId));
                         } else if (!clusterService.localNode().shouldConnectTo(node)) {
+                            // 连不上local节点
                             onFailure(idx, nodeId, new NodeShouldNotConnectException(clusterService.localNode(), node));
                         } else {
                             NodeRequest nodeRequest = newNodeRequest(nodeId, request);
+                            // 向节点发送nodeRequest请求
                             transportService.sendRequest(node, transportNodeAction, nodeRequest, transportRequestOptions, new BaseTransportResponseHandler<NodeResponse>() {
                                 @Override
                                 public NodeResponse newInstance() {
@@ -217,13 +223,13 @@ public abstract class TransportNodesOperationAction<Request extends NodesOperati
         private void finishHim() {
             Response finalResponse;
             try {
-                finalResponse = newResponse(request, responses);
+                finalResponse = newResponse(request, responses); // newResponse() -> TransportNodesStatsAction.newResponse()
             } catch (Throwable t) {
                 logger.debug("failed to combine responses from nodes", t);
                 listener.onFailure(t);
                 return;
             }
-            listener.onResponse(finalResponse);
+            listener.onResponse(finalResponse); // onResponse() -> LatchedActionListener.onResponse()
         }
     }
 

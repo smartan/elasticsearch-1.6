@@ -128,7 +128,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             // 对每个待搜索的index,获取其所有的routing
             Map<String, Set<String>> routingMap = clusterState.metaData().resolveSearchRouting(request.routing(), request.indices());
 
-            // 通过routing可以计算需要搜索当前index的哪些shards
+            // 通过routing可以计算需要搜索当前index的哪些shards,以及shard查询偏好
             shardsIts = clusterService.operationRouting().searchShards(clusterState, request.indices(), concreteIndices, routingMap, request.preference());
 
             // 所需执行的shard总数

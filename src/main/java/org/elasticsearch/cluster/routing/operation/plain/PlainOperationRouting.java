@@ -162,19 +162,35 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
         return set;
     }
 
+    /* preference 请求示例
+     * @example
+     * curl localhost:9200/_search?preference=xyzabc123 -d '
+     * {
+     *      "query": {
+     *          "match": {
+     *              "title": "elasticsearch"
+     *          }
+     *      }
+     *}
+     *'
+     */
     private ShardIterator preferenceActiveShardIterator(IndexShardRoutingTable indexShard, String localNodeId, DiscoveryNodes nodes, @Nullable String preference) {
         // 没有设置preference
         if (preference == null || preference.isEmpty()) {
             // cluster.routing.allocation.awareness.attributes
             String[] awarenessAttributes = awarenessAllocationDecider.awarenessAttributes();
             if (awarenessAttributes.length == 0) {
+                // 随机轮询shard
                 return indexShard.activeInitializingShardsRandomIt();
             } else {
                 return indexShard.preferAttributesActiveInitializingShardsIt(awarenessAttributes, nodes);
             }
         }
+        // 如果preference是以_开头
         if (preference.charAt(0) == '_') {
+            // 获取preference冒号之后的值
             Preference preferenceType = Preference.parse(preference);
+            // 查询指定的_shards
             if (preferenceType == Preference.SHARDS) {
                 // starts with _shards, so execute on specific ones
                 int index = preference.indexOf(';');
@@ -185,6 +201,7 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
                 } else {
                     shards = preference.substring(Preference.SHARDS.type().length() + 1, index);
                 }
+                // 指定要访问的shard id
                 String[] ids = Strings.splitStringByCommaToArray(shards);
                 boolean found = false;
                 for (String id : ids) {
@@ -206,21 +223,28 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
                     }
                 } else {
                     // update the preference and continue
+                    // 有别的preference
                     preference = preference.substring(index + 1);
                 }
             }
             preferenceType = Preference.parse(preference);
             switch (preferenceType) {
+                // 如果适用,优选使用提供的节点标识（在本例中）在节点上执行
                 case PREFER_NODE:
                     return indexShard.preferNodeActiveInitializingShardsIt(preference.substring(Preference.PREFER_NODE.type().length() + 1));
+                // 如果可能,查询将优先在本地分配的分片上执行
                 case LOCAL:
                     return indexShard.preferNodeActiveInitializingShardsIt(localNodeId);
+                // 该查询将仅在主分片上执行
                 case PRIMARY:
                     return indexShard.primaryActiveInitializingShardIt();
+                // 查询将在主分片上执行,如果不可用（故障转移）,将在其他分片上执行
                 case PRIMARY_FIRST:
                     return indexShard.primaryFirstActiveInitializingShardsIt();
+                // 查询将仅在本地分配的分片上执行
                 case ONLY_LOCAL:
                     return indexShard.onlyNodeActiveInitializingShardsIt(localNodeId);
+                // 将查询限制为仅在具有提供的节点标识的节点上执行（xyz在本例中）
                 case ONLY_NODE:
                     String nodeId = preference.substring(Preference.ONLY_NODE.type().length() + 1);
                     ensureNodeIdExists(nodes, nodeId);

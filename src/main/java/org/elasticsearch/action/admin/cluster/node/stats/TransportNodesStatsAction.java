@@ -92,7 +92,7 @@ public class TransportNodesStatsAction extends TransportNodesOperationAction<Nod
 
     @Override
     protected NodeStats nodeOperation(NodeStatsRequest nodeStatsRequest) throws ElasticsearchException {
-        NodesStatsRequest request = nodeStatsRequest.request;
+        NodesStatsRequest request = nodeStatsRequest.request; // 获取节点状态
         return nodeService.stats(request.indices(), request.os(), request.process(), request.jvm(), request.threadPool(), request.network(),
                 request.fs(), request.transport(), request.http(), request.breaker());
     }

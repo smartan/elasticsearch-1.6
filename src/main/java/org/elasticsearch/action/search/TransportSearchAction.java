@@ -106,7 +106,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             // 请求针对单分片时,计算分布式词频以获得更准确的评分
             dfsQueryAndFetchAction.execute(searchRequest, listener);
         } else if (searchRequest.searchType() == SearchType.QUERY_AND_FETCH) {
-            // 当query_then_fetch请求仅针对单个分片时,会自动选择该模式
+            // 当query_then_fetch请求仅针对单个分片时,会自动选择该模式,两个阶段query和fetch都在一次过程执行
             queryAndFetchAction.execute(searchRequest, listener);
         } else if (searchRequest.searchType() == SearchType.SCAN) {
             scanAction.execute(searchRequest, listener);

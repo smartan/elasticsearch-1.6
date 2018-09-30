@@ -506,10 +506,13 @@ public class MetaData implements Iterable<IndexMetaData> {
     }
 
     public Map<String, Set<String>> resolveSearchRouting(@Nullable String routing, String[] aliasesOrIndices) {
+        // 索引(别名)是否为空或者为_all
         if (isAllIndices(aliasesOrIndices)) {
             return resolveSearchRoutingAllIndices(routing);
         }
-
+        // 将索引或别名通配符列表以及特殊+/-符号转换为各自的完整匹配项
+        // 它不会仅转换为索引名,也会转换为别名
+        // 例如,alias_*将扩展为alias_1和alias_2,而不是这些别名指向的相应索引
         aliasesOrIndices = convertFromWildcards(aliasesOrIndices, IndicesOptions.lenientExpandOpen());
 
         if (aliasesOrIndices.length == 1) {
@@ -524,6 +527,7 @@ public class MetaData implements Iterable<IndexMetaData> {
             paramRouting = Strings.splitStringByCommaToSet(routing);
         }
 
+        // 获取多个索引的搜索路由
         for (String aliasOrIndex : aliasesOrIndices) {
             ImmutableOpenMap<String, AliasMetaData> indexToRoutingMap = aliases.get(aliasOrIndex);
             if (indexToRoutingMap != null && !indexToRoutingMap.isEmpty()) {
@@ -590,6 +594,12 @@ public class MetaData implements Iterable<IndexMetaData> {
         return routings;
     }
 
+    /**
+     * 获取单个索引的搜索路由
+     * @param routing
+     * @param aliasOrIndex
+     * @return
+     */
     private Map<String, Set<String>> resolveSearchRoutingSingleValue(@Nullable String routing, String aliasOrIndex) {
         Map<String, Set<String>> routings = null;
         Set<String> paramRouting = null;
@@ -597,14 +607,17 @@ public class MetaData implements Iterable<IndexMetaData> {
             paramRouting = Strings.splitStringByCommaToSet(routing);
         }
 
+        // 索引的MateData
         ImmutableOpenMap<String, AliasMetaData> indexToRoutingMap = aliases.get(aliasOrIndex);
         if (indexToRoutingMap != null && !indexToRoutingMap.isEmpty()) {
             // It's an alias
             for (ObjectObjectCursor<String, AliasMetaData> indexRouting : indexToRoutingMap) {
+                // 如果别名中有路由,则使用别名中的路由和参数中指定的路由的交集
                 if (!indexRouting.value.searchRoutingValues().isEmpty()) {
                     // Routing alias
                     Set<String> r = new HashSet<>(indexRouting.value.searchRoutingValues());
                     if (paramRouting != null) {
+                        // 仅保留此集合中包含在指定集合中的元素
                         r.retainAll(paramRouting);
                     }
                     if (!r.isEmpty()) {
@@ -615,6 +628,7 @@ public class MetaData implements Iterable<IndexMetaData> {
                     }
                 } else {
                     // Non-routing alias
+                    // 如果别名中没有搜索路由,则仅使用参数中指定的路由
                     if (paramRouting != null) {
                         Set<String> r = new HashSet<>(paramRouting);
                         if (routings == null) {
@@ -624,6 +638,7 @@ public class MetaData implements Iterable<IndexMetaData> {
                     }
                 }
             }
+
         } else {
             // It's an index
             if (paramRouting != null) {
