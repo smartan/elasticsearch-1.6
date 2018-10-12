@@ -261,6 +261,12 @@ public class InternalClusterService extends AbstractLifecycleComponent<ClusterSe
         submitStateUpdateTask(source, Priority.NORMAL, updateTask);
     }
 
+    /**
+     * 提交更新集群state任务
+     * @param source 任务名
+     * @param priority 优先级
+     * @param updateTask 要执行的任务
+     */
     public void submitStateUpdateTask(final String source, Priority priority, final ClusterStateUpdateTask updateTask) {
         if (!lifecycle.started()) {
             return;
@@ -363,14 +369,17 @@ public class InternalClusterService extends AbstractLifecycleComponent<ClusterSe
             }
             logger.debug("processing [{}]: execute", source);
             ClusterState previousClusterState = clusterState;
+            // 当前节点是否为master
             if (!previousClusterState.nodes().localNodeMaster() && updateTask.runOnlyOnMaster()) {
                 logger.debug("failing [{}]: local node is no longer master", source);
                 updateTask.onNoLongerMaster(source);
                 return;
             }
+            // 新的集群状态
             ClusterState newClusterState;
             long startTimeNS = System.nanoTime();
             try {
+                // 调用task的execute方法,获取新的集群状态
                 newClusterState = updateTask.execute(previousClusterState);
             } catch (Throwable e) {
                 TimeValue executionTime = TimeValue.timeValueMillis(Math.max(0, TimeValue.nsecToMSec(System.nanoTime() - startTimeNS)));
@@ -386,6 +395,7 @@ public class InternalClusterService extends AbstractLifecycleComponent<ClusterSe
                 return;
             }
 
+            // 集群状态没有发生更改
             if (previousClusterState == newClusterState) {
                 if (updateTask instanceof AckedClusterStateUpdateTask) {
                     //no need to wait for ack if nothing changed, the update can be counted as acknowledged
@@ -402,12 +412,15 @@ public class InternalClusterService extends AbstractLifecycleComponent<ClusterSe
 
             try {
                 Discovery.AckListener ackListener = new NoOpAckListener();
+                // 当前节点是master
                 if (newClusterState.nodes().localNodeMaster()) {
                     // only the master controls the version numbers
                     Builder builder = ClusterState.builder(newClusterState).version(newClusterState.version() + 1);
+                    // 重新构建routing table
                     if (previousClusterState.routingTable() != newClusterState.routingTable()) {
                         builder.routingTable(RoutingTable.builder(newClusterState.routingTable()).version(newClusterState.routingTable().version() + 1));
                     }
+                    // 重新构建meta data
                     if (previousClusterState.metaData() != newClusterState.metaData()) {
                         builder.metaData(MetaData.builder(newClusterState.metaData()).version(newClusterState.metaData().version() + 1));
                     }
@@ -473,6 +486,7 @@ public class InternalClusterService extends AbstractLifecycleComponent<ClusterSe
                 }
 
                 // update the current cluster state
+                // 更新集群的state
                 clusterState = newClusterState;
                 logger.debug("set local cluster state to version {}", newClusterState.version());
                 for (ClusterStateListener listener : preAppliedListeners) {
@@ -510,6 +524,7 @@ public class InternalClusterService extends AbstractLifecycleComponent<ClusterSe
                     }
                 }
 
+                // 调用task的clusterStateProcessed()方法
                 if (updateTask instanceof ProcessedClusterStateUpdateTask) {
                     ((ProcessedClusterStateUpdateTask) updateTask).clusterStateProcessed(source, previousClusterState, newClusterState);
                 }

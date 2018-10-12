@@ -142,6 +142,7 @@ public class LocalGateway extends AbstractLifecycleComponent<Gateway> implements
         ObjectFloatOpenHashMap<String> indices = new ObjectFloatOpenHashMap<>();
         MetaData electedGlobalState = null;
         int found = 0;
+        // 遍历所有节点的node state
         for (TransportNodesListGatewayMetaState.NodeLocalGatewayMetaState nodeState : nodesState) {
             if (nodeState.metaData() == null) {
                 continue;
@@ -150,8 +151,10 @@ public class LocalGateway extends AbstractLifecycleComponent<Gateway> implements
             if (electedGlobalState == null) {
                 electedGlobalState = nodeState.metaData();
             } else if (nodeState.metaData().version() > electedGlobalState.version()) {
+                // 每次都取最新版本的meta data
                 electedGlobalState = nodeState.metaData();
             }
+            // 添加要恢复的索引
             for (ObjectCursor<IndexMetaData> cursor : nodeState.metaData().indices().values()) {
                 indices.addTo(cursor.value.index(), 1);
             }
@@ -165,6 +168,7 @@ public class LocalGateway extends AbstractLifecycleComponent<Gateway> implements
         MetaData.Builder metaDataBuilder = MetaData.builder(electedGlobalState).removeAllIndices();
         final boolean[] states = indices.allocated;
         final Object[] keys = indices.keys;
+        // 获取要恢复的索引的meta data
         for (int i = 0; i < states.length; i++) {
             if (states[i]) {
                 String index = (String) keys[i];
@@ -197,6 +201,7 @@ public class LocalGateway extends AbstractLifecycleComponent<Gateway> implements
         ClusterState.Builder builder = ClusterState.builder(clusterName);
         // 恢复meta data
         builder.metaData(metaDataBuilder);
+        // 替换集群的cluster state
         listener.onSuccess(builder.build());
     }
 

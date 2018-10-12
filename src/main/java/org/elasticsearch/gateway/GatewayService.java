@@ -230,14 +230,17 @@ public class GatewayService extends AbstractLifecycleComponent<GatewayService> i
             clusterService.submitStateUpdateTask("local-gateway-elected-state", new ProcessedClusterStateUpdateTask() {
                 @Override
                 public ClusterState execute(ClusterState currentState) {
+                    // 添加断言,当前节点索引为空
                     assert currentState.metaData().indices().isEmpty();
 
                     // remove the block, since we recovered from gateway
+                    // 要恢复的cluster blocks
                     ClusterBlocks.Builder blocks = ClusterBlocks.builder()
                             .blocks(currentState.blocks())
                             .blocks(recoveredState.blocks())
                             .removeGlobalBlock(STATE_NOT_RECOVERED_BLOCK);
 
+                    // 要恢复的meta
                     MetaData.Builder metaDataBuilder = MetaData.builder(recoveredState.metaData());
                     // automatically generate a UID for the metadata if we need to
                     metaDataBuilder.generateUuidIfNeeded();
@@ -254,7 +257,7 @@ public class GatewayService extends AbstractLifecycleComponent<GatewayService> i
                     // update the state to reflect the new metadata and routing
                     ClusterState updatedState = ClusterState.builder(currentState)
                             .blocks(blocks)
-                            .metaData(metaDataBuilder)
+                            .metaData(metaDataBuilder) // 索引信息存储在meta中
                             .build();
 
                     // initialize all index routing tables as empty
