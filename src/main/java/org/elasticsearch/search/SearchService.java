@@ -382,25 +382,39 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
         }
     }
 
+    /**
+     * Query_And_Fetch的第一阶段,先执行Query再执行Fetch
+     * @param request Search请求
+     * @return        Fetch结果
+     * @throws ElasticsearchException Elasticsearch异常
+     */
     public QueryFetchSearchResult executeFetchPhase(ShardSearchRequest request) throws ElasticsearchException {
+        // 创建SearchContext
         final SearchContext context = createAndPutContext(request);
         contextProcessing(context);
         try {
+            // Query预处理
             context.indexShard().searchService().onPreQueryPhase(context);
             long time = System.nanoTime();
             try {
+                // Query阶段
                 queryPhase.execute(context);
             } catch (Throwable e) {
                 context.indexShard().searchService().onFailedQueryPhase(context);
                 throw ExceptionsHelper.convertToRuntime(e);
             }
             long time2 = System.nanoTime();
+            // 记录Query慢查询
             context.indexShard().searchService().onQueryPhase(context, time2 - time);
+
+            // Fetch预处理
             context.indexShard().searchService().onPreFetchPhase(context);
             try {
                 shortcutDocIdsToLoad(context);
+                // Fetch阶段
                 fetchPhase.execute(context);
                 if (context.scroll() == null) {
+                    // 如果没有scroll,则移除当前search context
                     freeContext(context.id());
                 } else {
                     contextProcessedSuccessfully(context);
@@ -409,6 +423,7 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
                 context.indexShard().searchService().onFailedFetchPhase(context);
                 throw ExceptionsHelper.convertToRuntime(e);
             }
+            // 记录Fetch慢查询
             context.indexShard().searchService().onFetchPhase(context, System.nanoTime() - time2);
             return new QueryFetchSearchResult(context.queryResult(), context.fetchResult());
         } catch (Throwable e) {
@@ -504,6 +519,12 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
         }
     }
 
+    /**
+     * Query_Then_Fetch第二阶段阶段
+     * @param request   Fetch请求
+     * @return          Fetch结果
+     * @throws ElasticsearchException Elasticsearch异常
+     */
     public FetchSearchResult executeFetchPhase(ShardFetchRequest request) throws ElasticsearchException {
         final SearchContext context = findContext(request.id());
         contextProcessing(context);
@@ -511,6 +532,7 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
             if (request.lastEmittedDoc() != null) {
                 context.lastEmittedDoc(request.lastEmittedDoc());
             }
+            // 将要fetch的doc id放入context
             context.docIdsToLoad(request.docIds(), 0, request.docIdsSize());
             context.indexShard().searchService().onPreFetchPhase(context);
             long time = System.nanoTime();
@@ -541,6 +563,12 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
         return context;
     }
 
+    /**
+     * 创建SearchContext
+     * @param request   ShardSearchRequest
+     * @return          SearchContext
+     * @throws ElasticsearchException Elasticsearch异常
+     */
     final SearchContext createAndPutContext(ShardSearchRequest request) throws ElasticsearchException {
         SearchContext context = createContext(request, null);
         boolean success = false;
@@ -556,13 +584,28 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
         }
     }
 
+    /**
+     * 创建context
+     * @param request   search请求
+     * @param searcher  searcher
+     * @return SearchContext
+     * @throws ElasticsearchException Elasticsearch异常
+     */
     final SearchContext createContext(ShardSearchRequest request, @Nullable Engine.Searcher searcher) throws ElasticsearchException {
+        // 获取Index对应的IndexService
+        // Tuple<IndexService, Injector> indexServiceInjectorTuple = indices.get(index)
         IndexService indexService = indicesService.indexServiceSafe(request.index());
+
+        // 获取Shard对应的IndexShard
+        // Tuple<IndexShard, Injector> indexShardInjectorTuple = shards.get(shardId)
         IndexShard indexShard = indexService.shardSafe(request.shardId());
 
         SearchShardTarget shardTarget = new SearchShardTarget(clusterService.localNode().id(), request.index(), request.shardId());
 
+        // 获取searcher
         Engine.Searcher engineSearcher = searcher == null ? indexShard.acquireSearcher("search") : searcher;
+
+        // 调用DefaultSearchContext构造方法创建context
         final SearchContext context = new DefaultSearchContext(idGenerator.incrementAndGet(), request, shardTarget, engineSearcher, indexService, indexShard, scriptService, cacheRecycler, pageCacheRecycler, bigArrays, threadPool.estimatedTimeInMillisCounter());
         SearchContext.setCurrent(context);
         try {
@@ -583,6 +626,7 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
 
             // pre process
             dfsPhase.preProcess(context);
+            // query预处理
             queryPhase.preProcess(context);
             fetchPhase.preProcess(context);
 

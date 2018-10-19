@@ -553,6 +553,12 @@ public class InternalSearchHit implements SearchHit {
         readFrom(in, InternalSearchHits.streamContext().streamShardTarget(InternalSearchHits.StreamContext.ShardTargetType.STREAM));
     }
 
+    /**
+     * 读取数据
+     * @param in StreamInput
+     * @param context InternalSearchHits.StreamContext
+     * @throws IOException IO 异常
+     */
     public void readFrom(StreamInput in, InternalSearchHits.StreamContext context) throws IOException {
         score = in.readFloat();
         id = in.readText();

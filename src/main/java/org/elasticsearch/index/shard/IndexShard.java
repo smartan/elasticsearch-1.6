@@ -790,6 +790,7 @@ public class IndexShard extends AbstractIndexShardComponent {
     }
 
     public Engine.Searcher acquireSearcher(String source, boolean searcherForWriteOperation) {
+        // 判断集群是否读
         readAllowed(searcherForWriteOperation);
         return engine().acquireSearcher(source);
     }

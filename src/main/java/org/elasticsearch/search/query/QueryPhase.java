@@ -92,6 +92,11 @@ public class QueryPhase implements SearchPhase {
         context.preProcess();
     }
 
+    /**
+     * Query阶段, 最终执行lucene搜索
+     * @param searchContext SearchContext
+     * @throws QueryPhaseExecutionException Query阶段执行异常
+     */
     public void execute(SearchContext searchContext) throws QueryPhaseExecutionException {
         // Pre-process facets and aggregations as late as possible. In the case of a DFS_Q_T_F
         // request, preProcess is called on the DFS phase phase, this is why we pre-process them

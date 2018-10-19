@@ -138,6 +138,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             // 期望多少个shard给出响应
             expectedTotalOps = shardsIts.totalSizeWith1ForEmpty();
 
+            // 用来存储每个shard的结果集
             firstResults = new AtomicArray<>(shardsIts.size());
             // Not so nice, but we need to know if there're nodes below the supported version
             // and if so fall back to classic scroll (based on from). We need to check every node
@@ -188,6 +189,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
                     sendExecuteFirstPhase(node, internalSearchRequest(shard, shardsIts.size(), request, filteringAliases, startTime(), useSlowScroll), new SearchServiceListener<FirstResult>() {
                         @Override
                         public void onResult(FirstResult result) {
+                            // 处理第一阶段结果
                             onFirstPhaseResult(shardIndex, shard, result, shardIt);
                         }
 
@@ -202,6 +204,8 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
 
         void onFirstPhaseResult(int shardIndex, ShardRouting shard, FirstResult result, ShardIterator shardIt) {
             result.shardTarget(new SearchShardTarget(shard.currentNodeId(), shard.index(), shard.id()));
+
+            // 填充firstResults, 将Query结果放入其中
             processFirstPhaseResult(shardIndex, shard, result);
             // we need to increment successful ops first before we compare the exit condition otherwise if we
             // are fast we could concurrently update totalOps but then preempt one of the threads which can
@@ -378,6 +382,12 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
 
         protected abstract void sendExecuteFirstPhase(DiscoveryNode node, ShardSearchTransportRequest request, SearchServiceListener<FirstResult> listener);
 
+        /**
+         * 处理第一阶段Query结果, 将Query结果放入firstResults
+         * @param shardIndex    shard序号
+         * @param shard         shard
+         * @param result        Query结果
+         */
         protected final void processFirstPhaseResult(int shardIndex, ShardRouting shard, FirstResult result) {
             firstResults.set(shardIndex, result);
 

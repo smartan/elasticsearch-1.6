@@ -327,13 +327,21 @@ public class SearchServiceTransportAction extends AbstractComponent {
         }
     }
 
+    /**
+     * Query_And_Fetch的第一阶段
+     * @param node      要执行的节点
+     * @param request   搜索请求
+     * @param listener  listener
+     */
     public void sendExecuteFetch(DiscoveryNode node, final ShardSearchTransportRequest request, final SearchServiceListener<QueryFetchSearchResult> listener) {
+        // 当前节点
         if (clusterService.state().nodes().localNodeId().equals(node.id())) {
             execute(new Callable<QueryFetchSearchResult>() {
                 @Override
                 public QueryFetchSearchResult call() throws Exception {
                     return searchService.executeFetchPhase(request);
                 }
+                // 最终要调用listener.onResult()
             }, listener);
         } else {
             transportService.sendRequest(node, QUERY_FETCH_ACTION_NAME, request, new BaseTransportResponseHandler<QueryFetchSearchResult>() {

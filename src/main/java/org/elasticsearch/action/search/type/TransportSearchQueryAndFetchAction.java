@@ -69,23 +69,37 @@ public class TransportSearchQueryAndFetchAction extends TransportSearchTypeActio
             return "query_fetch";
         }
 
+        /**
+         * QUERY_THEN_FETCH的第一阶段,执行Query和Fetch
+         * @param node  要执行的节点
+         * @param request  ShardSearchTransportRequest
+         * @param listener SearchServiceListener
+         */
         @Override
         protected void sendExecuteFirstPhase(DiscoveryNode node, ShardSearchTransportRequest request, SearchServiceListener<QueryFetchSearchResult> listener) {
             searchService.sendExecuteFetch(node, request, listener);
         }
 
+        /**
+         * QUERY_THEN_FETCH的第二阶段,执行排序并且将结果返回给调用者
+         * @throws Exception 抛出异常
+         */
         @Override
         protected void moveToSecondPhase() throws Exception {
             threadPool.executor(ThreadPool.Names.SEARCH).execute(new ActionRunnable<SearchResponse>(listener) {
                 @Override
                 public void doRun() throws IOException {
                     boolean useScroll = !useSlowScroll && request.scroll() != null;
-                    sortedShardList = searchPhaseController.sortDocs(useScroll, firstResults);
+                    // 对Query结果进行排序
+                    sortedShardList = searchPhaseController.sortDocs(useScroll, firstResults); //firstResults是第一阶段每一个shard的Query结果
+                    // merge已排序结果和第一阶段结果, Query结果和Fetch结果一致
                     final InternalSearchResponse internalResponse = searchPhaseController.merge(sortedShardList, firstResults, firstResults);
                     String scrollId = null;
                     if (request.scroll() != null) {
+                        // 如果是scroll, 则需要返回scroll id
                         scrollId = buildScrollId(request.searchType(), firstResults, null);
                     }
+                    // 将响应结果返回给调用者
                     listener.onResponse(new SearchResponse(internalResponse, scrollId, expectedSuccessfulOps, successfulOps.get(), buildTookInMillis(), buildShardFailures()));
                 }
 

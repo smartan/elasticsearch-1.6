@@ -149,7 +149,7 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
             threadPool.executor(ThreadPool.Names.SEARCH).execute(new ActionRunnable<SearchResponse>(listener) {
                 @Override
                 public void doRun() throws IOException {
-                    // 对结果进行merge
+                    // 对结果进行merge, 对每一个一阶段结果, 填充fetch到的数据
                     final InternalSearchResponse internalResponse = searchPhaseController.merge(sortedShardList, firstResults, fetchResults);
                     String scrollId = null;
                     if (request.scroll() != null) {

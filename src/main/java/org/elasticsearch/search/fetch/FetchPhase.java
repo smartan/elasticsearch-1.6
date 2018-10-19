@@ -100,13 +100,20 @@ public class FetchPhase implements SearchPhase {
     public void preProcess(SearchContext context) {
     }
 
+    /**
+     * Fetch阶段
+     * @param context SearchContext
+     */
     public void execute(SearchContext context) {
         FieldsVisitor fieldsVisitor;
         Set<String> fieldNames = null;
         List<String> extractFieldNames = null;
 
         boolean loadAllStored = false;
+        // 判断创建UidAndSourceFieldsVisitor还是JustUidFieldsVisitor
+        // 判断fieldNames == null
         if (!context.hasFieldNames()) {
+            // context是否包含局部字段
             if (context.hasPartialFields()) {
                 // partial fields need the source, so fetch it
                 fieldsVisitor = new UidAndSourceFieldsVisitor();
@@ -114,21 +121,28 @@ public class FetchPhase implements SearchPhase {
                 // no fields specified, default to return source if no explicit indication
                 if (!context.hasScriptFields() && !context.hasFetchSourceContext()) {
                     context.fetchSourceContext(new FetchSourceContext(true));
-                }// 初始化fieldsVisitor
+                }
+                // 初始化fieldsVisitor
+                // fetchSourceContext != null && fetchSourceContext.fetchSource()
                 fieldsVisitor = context.sourceRequested() ? new UidAndSourceFieldsVisitor() : new JustUidFieldsVisitor();
             }
         } else if (context.fieldNames().isEmpty()) {
+            // 如果fieldNames的list是空的
+            // 是否fetch source
             if (context.sourceRequested()) {
                 fieldsVisitor = new UidAndSourceFieldsVisitor();
             } else {
                 fieldsVisitor = new JustUidFieldsVisitor();
             }
         } else {
+            // 要fetch指定的field
             for (String fieldName : context.fieldNames()) {
+                // 如果要fetch '*', 则加载所有
                 if (fieldName.equals("*")) {
                     loadAllStored = true;
                     continue;
                 }
+                // 如果要fetch '_source', 则将context设为fetch source
                 if (fieldName.equals(SourceFieldMapper.NAME)) {
                     if (context.hasFetchSourceContext()) {
                         context.fetchSourceContext().fetchSource(true);
@@ -137,58 +151,81 @@ public class FetchPhase implements SearchPhase {
                     }
                     continue;
                 }
+                // 如果都不满足, 则fetch指定的field
+                // 获取field mapper
                 FieldMappers x = context.smartNameFieldMappers(fieldName);
                 if (x == null) {
                     // Only fail if we know it is a object field, missing paths / fields shouldn't fail.
+                    // 如果是个对象, 则包含子field, 抛出fail
                     if (context.smartNameObjectMapper(fieldName) != null) {
                         throw new ElasticsearchIllegalArgumentException("field [" + fieldName + "] isn't a leaf field");
                     }
                 } else if (x.mapper().fieldType().stored()) {
+                    // 判断field是否stored
+                    // 将field的index name加入集合
                     if (fieldNames == null) {
                         fieldNames = new HashSet<>();
                     }
                     fieldNames.add(x.mapper().names().indexName());
                 } else {
+                    // 如果field不为null且也不stored, 则加入extract集合
                     if (extractFieldNames == null) {
                         extractFieldNames = newArrayList();
                     }
                     extractFieldNames.add(fieldName);
                 }
             }
+            // 如果fields指定的是'*', 则取出所有field, 包括'_source'
             if (loadAllStored) {
                 fieldsVisitor = new AllFieldsVisitor(); // load everything, including _source
             } else if (fieldNames != null) {
+                // 如果有指定field, 则创建CustomFieldsVisitor
+                // 判断是否要加载'_source'
                 boolean loadSource = extractFieldNames != null || context.sourceRequested();
                 fieldsVisitor = new CustomFieldsVisitor(fieldNames, loadSource);
             } else if (extractFieldNames != null || context.sourceRequested()) {
+                // 如果没有指定field, 但是要fetch source, 则创建UidAndSourceFieldsVisitor
                 fieldsVisitor = new UidAndSourceFieldsVisitor();
             } else {
+                // 默认
                 fieldsVisitor = new JustUidFieldsVisitor();
             }
         }
 
-        InternalSearchHit[] hits = new InternalSearchHit[context.docIdsToLoadSize()];
+        // 创建hits对象, 大小为要fetch的doc id集合大小
+        InternalSearchHit[] hits = new InternalSearchHit[context.docIdsToLoadSize()]; // 要fetch的doc id集合
         FetchSubPhase.HitContext hitContext = new FetchSubPhase.HitContext();
+        // 遍历每一个要fetch的doc id
         for (int index = 0; index < context.docIdsToLoadSize(); index++) {
+            // 获取doc id时添加偏移量from
             int docId = context.docIdsToLoad()[context.docIdsToLoadFrom() + index];
+            // 返回数组中Document n的searcher/reader的索引下标, 用于构造searcher/reader
             int readerIndex = ReaderUtil.subIndex(docId, context.searcher().getIndexReader().leaves());
+            // 构造Reader Context
             AtomicReaderContext subReaderContext = context.searcher().getIndexReader().leaves().get(readerIndex);
             int subDocId = docId - subReaderContext.docBase;
 
             final InternalSearchHit searchHit;
             try {
+                // 嵌套结构的根文档ID
                 int rootDocId = findRootDocumentIfNested(context, subReaderContext, subDocId);
+                // 如果不是-1, 则是嵌套结构
                 if (rootDocId != -1) {
+                    // 嵌套结构需要单独创建fieldsVisitor
                     searchHit = createNestedSearchHit(context, docId, subDocId, rootDocId, extractFieldNames, loadAllStored, fieldNames, subReaderContext);
                 } else {
+                    // 非嵌套结构
                     searchHit = createSearchHit(context, fieldsVisitor, docId, subDocId, extractFieldNames, subReaderContext);
                 }
             } catch (IOException e) {
                 throw ExceptionsHelper.convertToElastic(e);
             }
-
+            // 填充search hit
             hits[index] = searchHit;
+            // 重置hit context...
             hitContext.reset(searchHit, subReaderContext, subDocId, context.searcher().getIndexReader());
+
+            // ScriptFieldsPhase, PartialFieldsPhase, MatchedQueriesPhase, ExplainPhase, HighlightPhase, FetchSourceSubPhase, VersionPhase, FieldDataFieldsFetchSubPhase, InnerHitsFetchSubPhase
             for (FetchSubPhase fetchSubPhase : fetchSubPhases) {
                 if (fetchSubPhase.hitExecutionNeeded(context)) {
                     fetchSubPhase.hitExecute(context, hitContext);
@@ -205,8 +242,17 @@ public class FetchPhase implements SearchPhase {
         context.fetchResult().hits(new InternalSearchHits(hits, context.queryResult().topDocs().totalHits, context.queryResult().topDocs().getMaxScore()));
     }
 
+    /**
+     *
+     * @param context SearchContext
+     * @param subReaderContext AtomicReaderContext
+     * @param subDocId int
+     * @return 嵌套结构的根文档ID
+     * @throws IOException IO异常
+     */
     private int findRootDocumentIfNested(SearchContext context, AtomicReaderContext subReaderContext, int subDocId) throws IOException {
         if (context.mapperService().hasNested()) {
+            // 如果是嵌套结构
             FixedBitSet nonNested = context.fixedBitSetFilterCache().getFixedBitSetFilter(NonNestedDocsFilter.INSTANCE).getDocIdSet(subReaderContext, null);
             if (!nonNested.get(subDocId)) {
                 return nonNested.nextSetBit(subDocId);
@@ -265,12 +311,35 @@ public class FetchPhase implements SearchPhase {
         return searchHit;
     }
 
-    private InternalSearchHit createNestedSearchHit(SearchContext context, int nestedTopDocId, int nestedSubDocId, int rootSubDocId, List<String> extractFieldNames, boolean loadAllStored, Set<String> fieldNames, AtomicReaderContext subReaderContext) throws IOException {
+    /**
+     * 嵌套结构获取SearchHit
+     * @param context          SearchContext
+     * @param nestedTopDocId   int
+     * @param nestedSubDocId   int
+     * @param rootSubDocId     int subDocId = docId - subReaderContext.docBase;
+     * @param extractFieldNames  List<String>
+     * @param loadAllStored    boolean
+     * @param fieldNames       Set<String>
+     * @param subReaderContext AtomicReaderContext
+     * @return                 InternalSearchHit
+     * @throws IOException     IO异常
+     */
+    private InternalSearchHit createNestedSearchHit(SearchContext context,
+                                                    int nestedTopDocId,
+                                                    int nestedSubDocId,
+                                                    int rootSubDocId,
+                                                    List<String> extractFieldNames,
+                                                    boolean loadAllStored,
+                                                    Set<String> fieldNames,
+                                                    AtomicReaderContext subReaderContext) throws IOException {
         final FieldsVisitor rootFieldsVisitor;
+        // 判断是否要fetch '_source'
         if (context.sourceRequested() || extractFieldNames != null || context.highlight() != null) {
             // Also if highlighting is requested on nested documents we need to fetch the _source from the root document,
             // otherwise highlighting will attempt to fetch the _source from the nested doc, which will fail,
             // because the entire _source is only stored with the root document.
+            // 如果在nested documents上需要highlighting, 我们需要从root document中获取_source,
+            // 否则highlighting将尝试从nested document中获取_source, 这将失败, 因为整个_source仅与根文档一起存储
             rootFieldsVisitor = new UidAndSourceFieldsVisitor();
         } else {
             rootFieldsVisitor = new JustUidFieldsVisitor();

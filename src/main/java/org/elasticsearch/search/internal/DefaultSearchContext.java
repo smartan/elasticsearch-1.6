@@ -184,6 +184,7 @@ public class DefaultSearchContext extends SearchContext {
     }
 
     /**
+     * 判断from和size并预处理query
      * Should be called before executing the main query and after all other parameters have been set.
      */
     public void preProcess() {
@@ -195,7 +196,7 @@ public class DefaultSearchContext extends SearchContext {
                 throw new QueryPhaseExecutionException(this, msg);
             }
         }
-
+        // 默认match_all()
         if (query() == null) {
             parsedQuery(ParsedQuery.parsedMatchAllQuery());
         }
