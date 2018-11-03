@@ -57,8 +57,14 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
         super(settings, threadPool, clusterService, searchService, searchPhaseController, actionFilters);
     }
 
+    /**
+     * QUERY_THEN_FETCH 搜索入口
+     * @param searchRequest     SearchRequest
+     * @param listener          ActionListener
+     */
     @Override
     protected void doExecute(SearchRequest searchRequest, ActionListener<SearchResponse> listener) {
+        // 执行Q_T_F
         new AsyncAction(searchRequest, listener).start();
     }
 
@@ -67,9 +73,17 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
         final AtomicArray<FetchSearchResult> fetchResults;
         final AtomicArray<IntArrayList> docIdsToLoad;
 
+        /**
+         * Q_T_F 内部类构造方法
+         * @param request   SearchRequest
+         * @param listener  ActionListener
+         */
         private AsyncAction(SearchRequest request, ActionListener<SearchResponse> listener) {
+            // 调用父类的构造方法, 获取要查询的Cluster Index Routing Shard Preference
             super(request, listener);
+            // 第二阶段 <ShardIndex, FetchResult>
             fetchResults = new AtomicArray<>(firstResults.length());
+            // 第一阶段 <ShardIndex, DocId>
             docIdsToLoad = new AtomicArray<>(firstResults.length());
         }
 
@@ -78,10 +92,17 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
             return "query";
         }
 
+        /**
+         * QUERY_THEN_FETCH 第一阶段请求
+         * @param node      shard 分片所在的节点
+         * @param request   ShardSearchTransportRequest
+         * @param listener  SearchServiceListener 执行listener.onResult()处理第一阶段结果
+         */
         @Override
         protected void sendExecuteFirstPhase(DiscoveryNode node, ShardSearchTransportRequest request, SearchServiceListener<QuerySearchResultProvider> listener) {
             searchService.sendExecuteQuery(node, request, listener);
         }
+
 
         /**
          * QUERY_THEN_FETCH第二阶段FETCH和MERGE过程

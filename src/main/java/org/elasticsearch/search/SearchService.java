@@ -290,7 +290,12 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
     }
 
     /**
+     * 先从缓存中查询结果, 如果缓存中不存在则直接执行Query 阶段
      * Try to load the query results from the cache or execute the query phase directly if the cache cannot be used.
+     * @param request       ShardSearchRequest
+     * @param context       SearchContext
+     * @param queryPhase    QueryPhase
+     * @throws Exception    Exception
      */
     private void loadOrExecuteQueryPhase(final ShardSearchRequest request, final SearchContext context,
             final QueryPhase queryPhase) throws Exception {
@@ -303,22 +308,37 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
         }
     }
 
+    /**
+     * Query阶段处理
+     * @param request   ShardSearchRequest
+     * @return          QuerySearchResultProvider
+     * @throws ElasticsearchException   Elasticsearch异常
+     */
     public QuerySearchResultProvider executeQueryPhase(ShardSearchRequest request) throws ElasticsearchException {
+        // 创建search context
         final SearchContext context = createAndPutContext(request);
         try {
+            // 预处理group stats
             context.indexShard().searchService().onPreQueryPhase(context);
+            // Query开始时间, 纳秒为单位
             long time = System.nanoTime();
+            // disable timeout
             contextProcessing(context);
 
+            // 加载缓存或者查询lucene
             loadOrExecuteQueryPhase(request, context, queryPhase);
 
+            // 如果搜索类型是COUNT, 则释放此次context
             if (context.searchType() == SearchType.COUNT) {
                 freeContext(context.id());
             } else {
+                // 否则恢复超时时间
                 contextProcessedSuccessfully(context);
             }
+            // 记录Slow Query Log
             context.indexShard().searchService().onQueryPhase(context, System.nanoTime() - time);
 
+            // 返回Query结果
             return context.queryResult();
         } catch (Throwable e) {
             // execution exception can happen while loading the cache, strip it
@@ -675,6 +695,10 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
         }
     }
 
+    /**
+     * search 期间禁用超时
+     * @param context   SearchContext
+     */
     private void contextProcessing(SearchContext context) {
         // disable timeout while executing a search
         context.accessed(-1);

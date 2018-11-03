@@ -74,15 +74,22 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
 
     }
 
+    /**
+     * 搜索入口
+     * @param searchRequest SearchRequest
+     * @param listener      ActionListener
+     */
     @Override
     protected void doExecute(SearchRequest searchRequest, ActionListener<SearchResponse> listener) {
         // optimize search type for cases where there is only one shard group to search on
         if (optimizeSingleShard && searchRequest.searchType() != SCAN && searchRequest.searchType() != COUNT) {
             try {
+                // 计算要请求多少个shard
                 ClusterState clusterState = clusterService.state();
                 String[] concreteIndices = clusterState.metaData().concreteIndices(searchRequest.indicesOptions(), searchRequest.indices());
                 Map<String, Set<String>> routingMap = clusterState.metaData().resolveSearchRouting(searchRequest.routing(), searchRequest.indices());
                 int shardCount = clusterService.operationRouting().searchShardsCount(clusterState, searchRequest.indices(), concreteIndices, routingMap, searchRequest.preference());
+                // 如果只请求一个shard, 则将SEARCH_TYPE设置为QUERY_AND_FETCH
                 if (shardCount == 1) {
                     // if we only have one group, then we always want Q_A_F, no need for DFS, and no need to do THEN since we hit one shard
                     searchRequest.searchType(QUERY_AND_FETCH);
@@ -94,7 +101,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             }
         }
 
-        // 根据search type,执行对应的Action
+        // 根据search type, 执行对应的Action
         if (searchRequest.searchType() == DFS_QUERY_THEN_FETCH) {
             // 计算分布式词频以获得更准确的评分
             dfsQueryThenFetchAction.execute(searchRequest, listener);

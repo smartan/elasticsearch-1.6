@@ -223,17 +223,28 @@ public class SearchServiceTransportAction extends AbstractComponent {
         }
     }
 
+    /**
+     * 执行Query COUNT 和 QUERY_THEN_FETCH
+     * @param node      DiscoveryNode
+     * @param request   ShardSearchTransportRequest
+     * @param listener  SearchServiceListener
+     */
     public void sendExecuteQuery(DiscoveryNode node, final ShardSearchTransportRequest request, final SearchServiceListener<QuerySearchResultProvider> listener) {
-        // 本地节点即当前要执行的节点
+        // 如果shard所在的节点id和当前节点id相同
         if (clusterService.state().nodes().localNodeId().equals(node.id())) {
+            // 执行execute()方法, 先执行Callable.call()
             execute(new Callable<QuerySearchResultProvider>() {
                 @Override
                 public QuerySearchResultProvider call() throws Exception {
+                    // 调用SearchService的executeQueryPhase()获取第一阶段结果
                     return searchService.executeQueryPhase(request);
                 }
+                // 最终要调用listener.onFailure()/listener.onResult()
             }, listener);
         } else {
-            // 发送请求执行远程节点搜索
+            // shard 所在节点不是当前节点, 发送请求执行远程节点搜索
+            // node是要发送的节点
+            // action是 indices:data/read/search[phase/query], 对应handler是SearchQueryTransportHandler
             transportService.sendRequest(node, QUERY_ACTION_NAME, request, new BaseTransportResponseHandler<QuerySearchResultProvider>() {
 
                 @Override
@@ -293,6 +304,12 @@ public class SearchServiceTransportAction extends AbstractComponent {
         }
     }
 
+    /**
+     * indices:data/read/search[phase/query/scroll
+     * @param node      DiscoveryNode
+     * @param request   InternalScrollSearchRequest
+     * @param listener  SearchServiceListener
+     */
     public void sendExecuteQuery(DiscoveryNode node, final InternalScrollSearchRequest request, final SearchServiceListener<QuerySearchResult> listener) {
         if (clusterService.state().nodes().localNodeId().equals(node.id())) {
             execute(new Callable<QuerySearchResult>() {
@@ -566,15 +583,21 @@ public class SearchServiceTransportAction extends AbstractComponent {
                     T result = null;
                     Throwable error = null;
                     try {
+                        // 在这里调用call()方法
                         result = callable.call();
                     } catch (Throwable t) {
                         error = t;
                     } finally {
+                        // 如果结果是null
                         if (result == null) {
+                            // 没有抛出异常
                             assert error != null;
+                            // 则调用listener.onFailure()
                             listener.onFailure(error);
                         } else {
+                            // 如果结果不为null, 没有抛出异常
                             assert error == null : error;
+                            // 执行listener.onResult()
                             listener.onResult(result);
                         }
                     }
@@ -774,6 +797,9 @@ public class SearchServiceTransportAction extends AbstractComponent {
         }
     }
 
+    /**
+     * Action为"indices:data/read/search[phase/query]"的Handler
+     */
     private class SearchQueryTransportHandler extends BaseTransportRequestHandler<ShardSearchTransportRequest> {
 
         @Override
@@ -781,9 +807,17 @@ public class SearchServiceTransportAction extends AbstractComponent {
             return new ShardSearchTransportRequest();
         }
 
+        /**
+         * 接收远程端口的tcp请求, 执行Query阶段
+         * @param request   ShardSearchTransportRequest
+         * @param channel   TransportChannel
+         * @throws Exception    Exception
+         */
         @Override
         public void messageReceived(ShardSearchTransportRequest request, TransportChannel channel) throws Exception {
+            // 执行SearchService的executeQueryPhase()
             QuerySearchResultProvider result = searchService.executeQueryPhase(request);
+            // 将Query结果响应发送给调用节点
             channel.sendResponse(result);
         }
 
@@ -802,7 +836,7 @@ public class SearchServiceTransportAction extends AbstractComponent {
 
         @Override
         public void messageReceived(QuerySearchRequest request, TransportChannel channel) throws Exception {
-            QuerySearchResult result = searchService.executeQueryPhase(request);
+            QuerySearchResult result = searchService.executeQueryPhase(request);        // query phase 入口
             channel.sendResponse(result);
         }
 

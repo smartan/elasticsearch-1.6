@@ -261,7 +261,18 @@ public class FetchPhase implements SearchPhase {
         return -1;
     }
 
+    /**
+     * 非嵌套结构SearchHit
+     * @param context       SearchContext
+     * @param fieldsVisitor FieldsVisitor
+     * @param docId         int
+     * @param subDocId      int
+     * @param extractFieldNames     List<String>
+     * @param subReaderContext      AtomicReaderContext
+     * @return      InternalSearchHit
+     */
     private InternalSearchHit createSearchHit(SearchContext context, FieldsVisitor fieldsVisitor, int docId, int subDocId, List<String> extractFieldNames, AtomicReaderContext subReaderContext) {
+        // fetch subDocId
         loadStoredFields(context, subReaderContext, fieldsVisitor, subDocId);
         fieldsVisitor.postProcess(context.mapperService());
 
@@ -280,6 +291,14 @@ public class FetchPhase implements SearchPhase {
         } else {
             typeText = documentMapper.typeText();
         }
+
+        // 创建SearchHit
+        // public InternalSearchHit(int docId, String id, Text type, Map<String, SearchHitField> fields) {
+        //      this.docId = docId;
+        //      this.id = new StringAndBytesText(id);
+        //      this.type = type;
+        //      this.fields = fields;
+        // }
         InternalSearchHit searchHit = new InternalSearchHit(docId, fieldsVisitor.uid().id(), typeText, searchFields);
 
         // go over and extract fields that are not mapped / stored
@@ -388,9 +407,19 @@ public class FetchPhase implements SearchPhase {
             context.lookup().source().setNextSourceContentType(contentType);
         }
 
+        // 创建SearchHit
+        // public InternalSearchHit(int nestedTopDocId, String id, Text type, InternalNestedIdentity nestedIdentity, Map<String, SearchHitField> fields) {
+        //      this.docId = nestedTopDocId;
+        //      this.id = new StringAndBytesText(id);
+        //      this.type = type;
+        //      this.nestedIdentity = nestedIdentity;
+        //      this.fields = fields;
+        // }
         InternalSearchHit searchHit = new InternalSearchHit(nestedTopDocId, rootFieldsVisitor.uid().id(), documentMapper.typeText(), nestedIdentity, searchFields);
+        // 获取fields
         if (extractFieldNames != null) {
             for (String extractFieldName : extractFieldNames) {
+                // 返回'path'相关的值
                 List<Object> values = context.lookup().source().extractRawValues(extractFieldName);
                 if (!values.isEmpty()) {
                     if (searchHit.fieldsOrNull() == null) {
@@ -402,6 +431,7 @@ public class FetchPhase implements SearchPhase {
                         hitField = new InternalSearchHitField(extractFieldName, new ArrayList<>(2));
                         searchHit.fields().put(extractFieldName, hitField);
                     }
+                    // 将fields的值加入values
                     for (Object value : values) {
                         hitField.values().add(value);
                     }
@@ -490,6 +520,13 @@ public class FetchPhase implements SearchPhase {
         return nestedIdentity;
     }
 
+    /**
+     * fetch docId
+     * @param searchContext     SearchContext
+     * @param readerContext     AtomicReaderContext
+     * @param fieldVisitor      FieldsVisitor
+     * @param docId             int
+     */
     private void loadStoredFields(SearchContext searchContext, AtomicReaderContext readerContext, FieldsVisitor fieldVisitor, int docId) {
         fieldVisitor.reset();
         try {
