@@ -47,7 +47,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- *
+ * QUERY_THEN_FETCH 包含一阶段和二阶段逻辑
  */
 public class TransportSearchQueryThenFetchAction extends TransportSearchTypeAction {
 
@@ -57,6 +57,11 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
         super(settings, threadPool, clusterService, searchService, searchPhaseController, actionFilters);
     }
 
+    /**
+     * QUERY_THEN_FETCH 搜索入口
+     * @param searchRequest SearchRequest
+     * @param listener ActionListener
+     */
     @Override
     protected void doExecute(SearchRequest searchRequest, ActionListener<SearchResponse> listener) {
         new AsyncAction(searchRequest, listener).start();
@@ -78,6 +83,12 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
             return "query";
         }
 
+        /**
+         * 执行一阶段
+         * @param node    DiscoveryNode
+         * @param request  ShardSearchTransportRequest
+         * @param listener SearchServiceListener
+         */
         @Override
         protected void sendExecuteFirstPhase(DiscoveryNode node, ShardSearchTransportRequest request, SearchServiceListener<QuerySearchResultProvider> listener) {
             searchService.sendExecuteQuery(node, request, listener);

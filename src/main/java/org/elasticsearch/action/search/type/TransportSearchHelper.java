@@ -46,6 +46,16 @@ import java.util.Map;
  */
 public abstract class TransportSearchHelper {
 
+    /**
+     * 将外部SearchRequest 转成一阶段 SearchRequest
+     * @param shardRouting  ShardRouting
+     * @param numberOfShards  int
+     * @param request       SearchRequest
+     * @param filteringAliases  String[]
+     * @param nowInMillis   long
+     * @param useSlowScroll boolean
+     * @return  ShardSearchTransportRequest
+     */
     public static ShardSearchTransportRequest internalSearchRequest(ShardRouting shardRouting, int numberOfShards, SearchRequest request, String[] filteringAliases, long nowInMillis, boolean useSlowScroll) {
         return new ShardSearchTransportRequest(request, shardRouting, numberOfShards, useSlowScroll, filteringAliases, nowInMillis);
     }

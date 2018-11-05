@@ -90,6 +90,11 @@ public class RestActions {
         builder.endObject();
     }
 
+    /**
+     * 解析Query Source
+     * @param request RestRequest
+     * @return QuerySourceBuilder
+     */
     public static QuerySourceBuilder parseQuerySource(RestRequest request) {
         String queryString = request.param("q");
         if (queryString == null) {

@@ -223,6 +223,12 @@ public class SearchServiceTransportAction extends AbstractComponent {
         }
     }
 
+    /***
+     * QUERY_THEN_FETCH 执行一阶段请求
+     * @param node    DiscoveryNode  要执行的节点
+     * @param request   ShardSearchTransportRequest  内部请求
+     * @param listener  SearchServiceListener  用来回调listener.onFailure()或者listener.onResult()
+     */
     public void sendExecuteQuery(DiscoveryNode node, final ShardSearchTransportRequest request, final SearchServiceListener<QuerySearchResultProvider> listener) {
         // 本地节点即当前要执行的节点
         if (clusterService.state().nodes().localNodeId().equals(node.id())) {
@@ -556,6 +562,12 @@ public class SearchServiceTransportAction extends AbstractComponent {
         }
     }
 
+    /**
+     *
+     * @param callable
+     * @param listener
+     * @param <T>
+     */
     private <T> void execute(final Callable<? extends T> callable, final SearchServiceListener<T> listener) {
         try {
             threadPool.executor(ThreadPool.Names.SEARCH).execute(new Runnable() {

@@ -505,6 +505,12 @@ public class MetaData implements Iterable<IndexMetaData> {
         return resolveSearchRouting(routing, convertFromWildcards(new String[]{aliasOrIndex}, IndicesOptions.lenientExpandOpen()));
     }
 
+    /**
+     * 查找索引对应的routing
+     * @param routing    request.routing
+     * @param aliasesOrIndices    request.indices
+     * @return
+     */
     public Map<String, Set<String>> resolveSearchRouting(@Nullable String routing, String[] aliasesOrIndices) {
         // 索引(别名)是否为空或者为_all
         if (isAllIndices(aliasesOrIndices)) {
@@ -529,10 +535,13 @@ public class MetaData implements Iterable<IndexMetaData> {
 
         // 获取多个索引的搜索路由
         for (String aliasOrIndex : aliasesOrIndices) {
+            // 索引的元数据
             ImmutableOpenMap<String, AliasMetaData> indexToRoutingMap = aliases.get(aliasOrIndex);
             if (indexToRoutingMap != null && !indexToRoutingMap.isEmpty()) {
+                // 遍历元数据
                 for (ObjectObjectCursor<String, AliasMetaData> indexRouting : indexToRoutingMap) {
                     if (!norouting.contains(indexRouting.key)) {
+                        // 如果search routing 不为空
                         if (!indexRouting.value.searchRoutingValues().isEmpty()) {
                             // Routing alias
                             if (routings == null) {

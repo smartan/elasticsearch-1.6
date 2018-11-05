@@ -79,13 +79,21 @@ public class RestSearchAction extends BaseRestHandler {
     @Override
     public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) {
         SearchRequest searchRequest;
+        // rest request转search request
         searchRequest = RestSearchAction.parseSearchRequest(request);
         searchRequest.listenerThreaded(false);
+        // 调用client search
         client.search(searchRequest, new RestStatusToXContentListener<SearchResponse>(channel));
     }
 
+    /**
+     * 解析Search Request
+     * @param request RestRequest
+     * @return SearchRequest
+     */
     public static SearchRequest parseSearchRequest(RestRequest request) {
         String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
+        // 初始化一个带indices的search request
         SearchRequest searchRequest = new SearchRequest(indices);
         // get the content, and put it in the body
         // add content/source as template if template flag is set
@@ -106,7 +114,7 @@ public class RestSearchAction extends BaseRestHandler {
                 }
             }
         }
-        // 解析搜索参数
+        // 解析search参数
         searchRequest.extraSource(parseSearchSource(request));
         // search_type默认QUERY_THEN_FETCH
         searchRequest.searchType(request.param("search_type"));
@@ -118,6 +126,7 @@ public class RestSearchAction extends BaseRestHandler {
         }
 
         searchRequest.types(Strings.splitStringByCommaToArray(request.param("type")));
+        // 搜索偏好
         searchRequest.routing(request.param("routing"));
         searchRequest.preference(request.param("preference"));
         searchRequest.indicesOptions(IndicesOptions.fromRequest(request, searchRequest.indicesOptions()));
@@ -125,8 +134,14 @@ public class RestSearchAction extends BaseRestHandler {
         return searchRequest;
     }
 
+    /**
+     * 解析Search Source参数
+     * @param request RestRequest
+     * @return SearchSourceBuilder
+     */
     public static SearchSourceBuilder parseSearchSource(RestRequest request) {
         SearchSourceBuilder searchSourceBuilder = null;
+        // 解析带q的请求
         QuerySourceBuilder querySourceBuilder = RestActions.parseQuerySource(request);
         if (querySourceBuilder != null) {
             searchSourceBuilder = new SearchSourceBuilder();

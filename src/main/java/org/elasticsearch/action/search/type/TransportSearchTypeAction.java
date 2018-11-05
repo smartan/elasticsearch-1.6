@@ -125,10 +125,10 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
                 clusterState.blocks().indexBlockedRaiseException(ClusterBlockLevel.READ, index);
             }
 
-            // 对每个待搜索的index,获取其所有的routing
+            // 对每个待搜索的index, 获取其所有的routing
             Map<String, Set<String>> routingMap = clusterState.metaData().resolveSearchRouting(request.routing(), request.indices());
 
-            // 通过routing可以计算需要搜索当前index的哪些shards,以及shard查询偏好
+            // 通过routing可以计算需要搜索当前index的哪些shards, 以及shard查询偏好
             shardsIts = clusterService.operationRouting().searchShards(clusterState, request.indices(), concreteIndices, routingMap, request.preference());
 
             // 所需执行的shard总数
@@ -189,7 +189,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
                     sendExecuteFirstPhase(node, internalSearchRequest(shard, shardsIts.size(), request, filteringAliases, startTime(), useSlowScroll), new SearchServiceListener<FirstResult>() {
                         @Override
                         public void onResult(FirstResult result) {
-                            // 处理第一阶段结果
+                            // 处理第一阶段结果, 进入第二阶段
                             onFirstPhaseResult(shardIndex, shard, result, shardIt);
                         }
 
