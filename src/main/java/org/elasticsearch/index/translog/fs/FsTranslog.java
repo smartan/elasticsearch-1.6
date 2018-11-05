@@ -367,6 +367,12 @@ public class FsTranslog extends AbstractIndexShardComponent implements Translog 
         }
     }
 
+    /**
+     * 增加Translog
+     * @param operation     Operation
+     * @return      Location
+     * @throws TranslogException    Translog 异常
+     */
     @Override
     public Location add(Operation operation) throws TranslogException {
         rwl.readLock().lock();

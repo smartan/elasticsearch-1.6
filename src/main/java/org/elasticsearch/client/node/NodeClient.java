@@ -94,7 +94,7 @@ public class NodeClient extends AbstractClient {
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse, RequestBuilder extends ActionRequestBuilder<Request, Response, RequestBuilder, Client>> void execute(Action<Request, Response, RequestBuilder, Client> action, Request request, ActionListener<Response> listener) {
         headers.applyTo(request);
-        TransportAction<Request, Response> transportAction = actions.get((ClientAction)action);
+        TransportAction<Request, Response> transportAction = actions.get((ClientAction)action);  // TransportIndexAction
         transportAction.execute(request, listener);
     }
 }

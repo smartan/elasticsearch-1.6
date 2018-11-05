@@ -132,6 +132,11 @@ public class MetaDataCreateIndexService extends AbstractComponent {
         }
     }
 
+    /**
+     * 创建索引
+     * @param request  CreateIndexClusterStateUpdateRequest
+     * @param listener ActionListener
+     */
     public void createIndex(final CreateIndexClusterStateUpdateRequest request, final ActionListener<ClusterStateUpdateResponse> listener) {
 
         // we lock here, and not within the cluster service callback since we don't want to
@@ -139,10 +144,12 @@ public class MetaDataCreateIndexService extends AbstractComponent {
         final Semaphore mdLock = metaDataService.indexMetaDataLock(request.index());
 
         // quick check to see if we can acquire a lock, otherwise spawn to a thread pool
+        // 如果可以获取锁
         if (mdLock.tryAcquire()) {
             createIndex(request, listener, mdLock);
             return;
         }
+        // 如果无法获取锁, 则交给线程池
         threadPool.executor(ThreadPool.Names.MANAGEMENT).execute(new ActionRunnable(listener) {
             @Override
             public void doRun() throws InterruptedException {
@@ -191,13 +198,22 @@ public class MetaDataCreateIndexService extends AbstractComponent {
         }
     }
 
+    /**
+     * 创建索引
+     * @param request   CreateIndexClusterStateUpdateRequest
+     * @param listener  ActionListener
+     * @param mdLock    Semaphore
+     */
     private void createIndex(final CreateIndexClusterStateUpdateRequest request, final ActionListener<ClusterStateUpdateResponse> listener, final Semaphore mdLock) {
 
         ImmutableSettings.Builder updatedSettingsBuilder = ImmutableSettings.settingsBuilder();
         updatedSettingsBuilder.put(request.settings()).normalizePrefix(IndexMetaData.INDEX_SETTING_PREFIX);
         request.settings(updatedSettingsBuilder.build());
 
-        clusterService.submitStateUpdateTask("create-index [" + request.index() + "], cause [" + request.cause() + "]", Priority.URGENT, new AckedClusterStateUpdateTask<ClusterStateUpdateResponse>(request, listener) {
+        // 提交一个更新集群信息的Task
+        clusterService.submitStateUpdateTask("create-index [" + request.index() + "], cause [" + request.cause() + "]",
+                Priority.URGENT,
+                new AckedClusterStateUpdateTask<ClusterStateUpdateResponse>(request, listener) {
 
             @Override
             protected ClusterStateUpdateResponse newResponse(boolean acknowledged) {

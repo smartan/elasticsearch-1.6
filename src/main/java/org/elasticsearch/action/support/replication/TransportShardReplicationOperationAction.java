@@ -109,7 +109,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
 
     @Override
     protected void doExecute(Request request, ActionListener<Response> listener) {
-        new PrimaryPhase(request, listener).run();
+        new PrimaryPhase(request, listener).run();  //TransportShardReplicationOperationAction.PrimaryPhase.doRun()
     }
 
     protected abstract Request newRequestInstance();
@@ -347,26 +347,35 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
             finishWithUnexpectedFailure(e);
         }
 
+        /**
+         * 在主分片上创建索引文档
+         */
         protected void doRun() {
             if (checkBlocks() == false) {
                 return;
             }
+            // 找到索引对应的所有shard
             final ShardIterator shardIt = shards(observer.observedState(), internalRequest);
+            // 找到shard中的primary shard
             final ShardRouting primary = resolvePrimary(shardIt);
+            // primary shard 为 null
             if (primary == null) {
                 retryBecauseUnavailable(shardIt.shardId(), "No active shards.");
                 return;
             }
+            // primary shard 不是active的
             if (primary.active() == false) {
                 logger.trace("primary shard [{}] is not yet active, scheduling a retry.", primary.shardId());
                 retryBecauseUnavailable(shardIt.shardId(), "Primary shard is not active or isn't assigned to a known node.");
                 return;
             }
+            //
             if (observer.observedState().nodes().nodeExists(primary.currentNodeId()) == false) {
                 logger.trace("primary shard [{}] is assigned to anode we do not know the node, scheduling a retry.", primary.shardId(), primary.currentNodeId());
                 retryBecauseUnavailable(shardIt.shardId(), "Primary shard is not active or isn't assigned to a known node.");
                 return;
             }
+            // 正常的primary shard
             routeRequestOrPerformLocally(primary, shardIt);
         }
 
@@ -410,6 +419,11 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
             return true;
         }
 
+        /**
+         * 遍历shard, 找到primary shard
+         * @param shardIt   ShardIterator
+         * @return      ShardRouting
+         */
         protected ShardRouting resolvePrimary(ShardIterator shardIt) {
             // no shardIt, might be in the case between index gateway recovery and shardIt initialization
             ShardRouting shard;
@@ -426,6 +440,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
          * send the request to the node holding the primary or execute if local
          */
         protected void routeRequestOrPerformLocally(final ShardRouting primary, final ShardIterator shardsIt) {
+            // 如果是master节点
             if (primary.currentNodeId().equals(observer.observedState().nodes().localNodeId())) {
                 try {
                     if (internalRequest.request().operationThreaded()) {
@@ -559,9 +574,13 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
         }
 
         /**
+         * 在primary上索引文档
          * perform the operation on the node holding the primary
+         * @param primary   ShardRouting    primary shard
+         * @param shardsIt  ShardIterator   all shards
          */
         void performOnPrimary(final ShardRouting primary, final ShardIterator shardsIt) {
+            // 检查在写入一致性设置前提下是否可写
             final String writeConsistencyFailure = checkWriteConsistency(primary);
             if (writeConsistencyFailure != null) {
                 retryBecauseUnavailable(primary.shardId(), writeConsistencyFailure);
@@ -569,10 +588,15 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
             }
             final ReplicationPhase replicationPhase;
             try {
+                // 获取index shard的引用
                 indexShardReference = getIndexShardOperationsCounter(primary.shardId());
+                // 构建primary operation请求
                 PrimaryOperationRequest por = new PrimaryOperationRequest(primary.id(), internalRequest.concreteIndex(), internalRequest.request());
+                // 执行shard上的索引操作
                 Tuple<Response, ReplicaRequest> primaryResponse = shardOperationOnPrimary(observer.observedState(), por);
                 logger.trace("operation completed on primary [{}]", primary);
+
+                // 构建replication阶段
                 replicationPhase = new ReplicationPhase(shardsIt, primaryResponse.v2(), primaryResponse.v1(), observer, primary, internalRequest, listener, indexShardReference);
             } catch (Throwable e) {
                 internalRequest.request.setCanHaveDuplicates();
@@ -600,6 +624,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
                 finishAsFailed(e);
                 return;
             }
+            // 将primary shard上的数据拷贝到replication上
             finishAndMoveToReplication(replicationPhase);
         }
 
@@ -657,8 +682,15 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
 
     }
 
+    /**
+     * 获取索引shard操作的counter
+     * @param shardId   ShardId
+     * @return  Releasable
+     */
     protected Releasable getIndexShardOperationsCounter(ShardId shardId) {
+        // 根据shard的index name, 获取IndexService
         IndexService indexService = indicesService.indexServiceSafe(shardId.index().getName());
+        // 根据shard的id, 获取IndexShard
         IndexShard indexShard = indexService.shardSafe(shardId.id());
         return new IndexShardReference(indexShard);
     }

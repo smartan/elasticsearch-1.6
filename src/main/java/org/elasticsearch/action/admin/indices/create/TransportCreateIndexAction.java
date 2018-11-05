@@ -70,6 +70,13 @@ public class TransportCreateIndexAction extends TransportMasterNodeOperationActi
         return state.blocks().indexBlockedException(ClusterBlockLevel.METADATA_WRITE, request.index());
     }
 
+    /**
+     * 新建索引
+     * @param request  CreateIndexRequest
+     * @param state  ClusterState
+     * @param listener  ActionListener
+     * @throws ElasticsearchException  ElasticsearchException
+     */
     @Override
     protected void masterOperation(final CreateIndexRequest request, final ClusterState state, final ActionListener<CreateIndexResponse> listener) throws ElasticsearchException {
         String cause = request.cause();
@@ -82,6 +89,7 @@ public class TransportCreateIndexAction extends TransportMasterNodeOperationActi
                 .settings(request.settings()).mappings(request.mappings())
                 .aliases(request.aliases()).customs(request.customs());
 
+        // 执行创建索引
         createIndexService.createIndex(updateRequest, new ActionListener<ClusterStateUpdateResponse>() {
 
             @Override

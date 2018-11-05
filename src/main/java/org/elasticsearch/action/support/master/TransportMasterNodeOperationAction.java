@@ -22,6 +22,7 @@ package org.elasticsearch.action.support.master;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.cluster.ClusterChangedEvent;
@@ -83,14 +84,27 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
         return true;
     }
 
+    /**
+     * 执行创建索引
+     * @param request    创建索引的请求 Request
+     * @param listener   ActionListener
+     */
     @Override
     protected void doExecute(final Request request, final ActionListener<Response> listener) {
         innerExecute(request, listener, new ClusterStateObserver(clusterService, request.masterNodeTimeout(), logger), false);
     }
 
+    /**
+     * 内部创建索引逻辑
+     * @param request    Request
+     * @param listener   ActionListener
+     * @param observer   ClusterStateObserver
+     * @param retrying   boolean
+     */
     private void innerExecute(final Request request, final ActionListener<Response> listener, final ClusterStateObserver observer, final boolean retrying) {
         final ClusterState clusterState = observer.observedState();
         final DiscoveryNodes nodes = clusterState.nodes();
+        // 判断当前节点是否master
         if (nodes.localNodeMaster() || localExecute(request)) {
             // check for block, if blocked, retry, else, execute locally
             final ClusterBlockException blockException = checkBlock(request, clusterState);
@@ -126,6 +140,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                 );
 
             } else {
+                // 如果没有block
                 try {
                     threadPool.executor(executor).execute(new Runnable() {
                         @Override
@@ -142,6 +157,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                 }
             }
         } else {
+            // 如果当前节点不是master且集群没有master
             if (nodes.masterNode() == null) {
                 if (retrying) {
                     listener.onFailure(new MasterNotDiscoveredException());
@@ -179,7 +195,11 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                 }
                 return;
             }
+            // empty
             processBeforeDelegationToMaster(request, clusterState);
+
+            // CreateIndexAction.NAME = indices:admin/create
+            // 将建索引请求发送给master节点
             transportService.sendRequest(nodes.masterNode(), actionName, request, new BaseTransportResponseHandler<Response>() {
                 @Override
                 public Response newInstance() {
@@ -196,6 +216,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                     return ThreadPool.Names.SAME;
                 }
 
+                // 处理异常
                 @Override
                 public void handleException(final TransportException exp) {
                     if (exp.unwrapCause() instanceof ConnectTransportException) {
@@ -232,6 +253,8 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
         }
     }
 
+    // 对应innerExecute里的的actionName
+    // transportService.registerHandler(actionName, new TransportHandler());
     private class TransportHandler extends BaseTransportRequestHandler<Request> {
 
         @Override
@@ -248,6 +271,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
         public void messageReceived(final Request request, final TransportChannel channel) throws Exception {
             // we just send back a response, no need to fork a listener
             request.listenerThreaded(false);
+            //
             execute(request, new ActionListener<Response>() {
                 @Override
                 public void onResponse(Response response) {

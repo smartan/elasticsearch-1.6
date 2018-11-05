@@ -474,7 +474,14 @@ public class IndexShard extends AbstractIndexShardComponent {
         }
     }
 
+    /**
+     * create document
+     * @param create    Engine.Create
+     * @return  ParsedDocument
+     * @throws ElasticsearchException  异常信息
+     */
     public ParsedDocument create(Engine.Create create) throws ElasticsearchException {
+        // 索引可写
         writeAllowed(create.origin());
         create = indexingService.preCreate(create);
         if (logger.isTraceEnabled()) {
@@ -501,7 +508,14 @@ public class IndexShard extends AbstractIndexShardComponent {
         }
     }
 
+    /**
+     * Index Document
+     * @param index Engine.Index
+     * @return  ParsedDocument
+     * @throws ElasticsearchException  异常
+     */
     public ParsedDocument index(Engine.Index index) throws ElasticsearchException {
+        // 判断分片可写
         writeAllowed(index.origin());
         index = indexingService.preIndex(index);
         try {

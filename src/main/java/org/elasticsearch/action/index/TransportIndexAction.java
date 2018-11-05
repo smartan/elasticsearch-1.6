@@ -77,27 +77,43 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
         super(settings, IndexAction.NAME, transportService, clusterService, indicesService, threadPool, shardStateAction, actionFilters);
         this.createIndexAction = createIndexAction;
         this.mappingUpdatedAction = mappingUpdatedAction;
+        // action.auto_create_index 参数
         this.autoCreateIndex = new AutoCreateIndex(settings);
         this.allowIdGeneration = settings.getAsBoolean("action.allow_id_generation", true);
     }
 
+    /**
+     * 执行创建索引流程
+     * @param request     IndexRequest
+     * @param listener    ActionListener
+     */
     @Override
     protected void doExecute(final IndexRequest request, final ActionListener<IndexResponse> listener) {
         // if we don't have a master, we don't have metadata, that's fine, let it find a master using create index API
+        // 如果允许自动创建索引
         if (autoCreateIndex.shouldAutoCreate(request.index(), clusterService.state())) {
             CreateIndexRequest createIndexRequest = new CreateIndexRequest(request);
+            // 索引名 index
             createIndexRequest.index(request.index());
+            // 索引类型 type
             createIndexRequest.mapping(request.type());
+            // 创建索引的原因
             createIndexRequest.cause("auto(index api)");
+            // 超时时间
             createIndexRequest.masterNodeTimeout(request.timeout());
+
+            // TransportMasterNodeOperationAction.doExecute()
+            // 创建索引
             createIndexAction.execute(createIndexRequest, new ActionListener<CreateIndexResponse>() {
                 @Override
                 public void onResponse(CreateIndexResponse result) {
+                    // 向索引中添加文档信息
                     innerExecute(request, listener);
                 }
 
                 @Override
                 public void onFailure(Throwable e) {
+                    // 如果是索引已经存在异常, 则继续创建索引
                     if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {
                         // we have the index, do it
                         try {
@@ -111,7 +127,7 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
                 }
             });
         } else {
-            innerExecute(request, listener);
+            innerExecute(request, listener);  // 索引已经存在
         }
     }
 
@@ -133,7 +149,7 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
     }
 
     private void innerExecute(final IndexRequest request, final ActionListener<IndexResponse> listener) {
-        super.doExecute(request, listener);
+        super.doExecute(request, listener); // TransportShardReplicationOperationAction.doExecute()
     }
 
     @Override
@@ -167,11 +183,19 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
                 .indexShards(clusterService.state(), request.concreteIndex(), request.request().type(), request.request().id(), request.request().routing());
     }
 
+    /**
+     * primary shard 操作
+     * @param clusterState  ClusterState
+     * @param shardRequest  PrimaryOperationRequest
+     * @return              Tuple
+     * @throws Throwable    Throwable
+     */
     @Override
     protected Tuple<IndexResponse, IndexRequest> shardOperationOnPrimary(ClusterState clusterState, PrimaryOperationRequest shardRequest) throws Throwable {
         final IndexRequest request = shardRequest.request;
 
         // validate, if routing is required, that we got routing
+        // index meta data
         IndexMetaData indexMetaData = clusterState.metaData().index(shardRequest.shardId.getIndex());
         MappingMetaData mappingMd = indexMetaData.mappingOrDefault(request.type());
         if (mappingMd != null && mappingMd.routing().required()) {
@@ -180,34 +204,44 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
             }
         }
 
+        // index service
         IndexService indexService = indicesService.indexServiceSafe(shardRequest.shardId.getIndex());
+        // index shard
         IndexShard indexShard = indexService.shardSafe(shardRequest.shardId.id());
+
+        // request转化为source  type  id  routing  parent  timestamp  ttl
         SourceToParse sourceToParse = SourceToParse.source(SourceToParse.Origin.PRIMARY, request.source()).type(request.type()).id(request.id())
                 .routing(request.routing()).parent(request.parent()).timestamp(request.timestamp()).ttl(request.ttl());
+
         long version;
         boolean created;
         try {
             Engine.IndexingOperation op;
+            // 如果是 index request
             if (request.opType() == IndexRequest.OpType.INDEX) {
                 Engine.Index index = indexShard.prepareIndex(sourceToParse, request.version(), request.versionType(), Engine.Operation.Origin.PRIMARY, request.canHaveDuplicates());
                 if (index.parsedDoc().mappingsModified()) {
                     mappingUpdatedAction.updateMappingOnMaster(shardRequest.shardId.getIndex(), index.docMapper(), indexService.indexUUID());
                 }
+                // 执行index请求
                 indexShard.index(index);
                 version = index.version();
                 op = index;
                 created = index.created();
             } else {
+                // 如果是 create request
                 Engine.Create create = indexShard.prepareCreate(sourceToParse,
                         request.version(), request.versionType(), Engine.Operation.Origin.PRIMARY, request.canHaveDuplicates(), request.autoGeneratedId());
                 if (create.parsedDoc().mappingsModified()) {
                     mappingUpdatedAction.updateMappingOnMaster(shardRequest.shardId.getIndex(), create.docMapper(), indexService.indexUUID());
                 }
+                // 执行create请求
                 indexShard.create(create);
                 version = create.version();
                 op = create;
                 created = true;
             }
+            // _refresh 参数
             if (request.refresh()) {
                 try {
                     indexShard.refresh("refresh_flag_index");
@@ -220,6 +254,7 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
             request.versionType(request.versionType().versionTypeForReplicationAndRecovery());
             assert request.versionType().validateVersionForWrites(request.version());
 
+            // 返回响应
             IndexResponse response = new IndexResponse(shardRequest.shardId.getIndex(), request.type(), request.id(), version, created);
             return new Tuple<>(response, shardRequest.request);
 

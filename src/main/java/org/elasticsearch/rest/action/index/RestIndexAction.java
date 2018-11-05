@@ -67,7 +67,7 @@ public class RestIndexAction extends BaseRestHandler {
             RestIndexAction.this.handleRequest(request, channel, client);
         }
     }
-
+    // 索引入口
     @Override
     public void handleRequest(final RestRequest request, final RestChannel channel, final Client client) {
         IndexRequest indexRequest = new IndexRequest(request.param("index"), request.param("type"), request.param("id"));
