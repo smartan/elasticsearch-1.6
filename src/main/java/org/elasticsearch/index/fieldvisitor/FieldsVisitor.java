@@ -53,7 +53,7 @@ public abstract class FieldsVisitor extends StoredFieldVisitor {
             }
         }
         // can't derive exact mapping type
-        for (Map.Entry<String, List<Object>> entry : fields().entrySet()) {
+        for (Map.Entry<String, List<Object>> entry : fields().entrySet()) {    // fieldValues
             FieldMappers fieldMappers = mapperService.indexName(entry.getKey());
             if (fieldMappers == null) {
                 continue;

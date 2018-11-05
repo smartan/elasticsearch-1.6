@@ -244,20 +244,39 @@ public class TransportService extends AbstractLifecycleComponent<TransportServic
         return futureHandler;
     }
 
+    /**
+     * 将action发送到对应的node节点
+     * @param node      DiscoveryNode
+     * @param action    String
+     * @param request   TransportRequest
+     * @param handler   TransportResponseHandler
+     * @param <T>       TransportResponse
+     */
     public <T extends TransportResponse> void sendRequest(final DiscoveryNode node, final String action, final TransportRequest request,
                                                           final TransportResponseHandler<T> handler) {
         sendRequest(node, action, request, TransportRequestOptions.EMPTY, handler);
     }
 
+    /**
+     * 将action发送到对应的node节点
+     * @param node      DiscoveryNode
+     * @param action    String
+     * @param request   TransportRequest
+     * @param options   TransportRequestOptions
+     * @param handler   TransportResponseHandler
+     * @param <T>       TransportResponse
+     */
     public <T extends TransportResponse> void sendRequest(final DiscoveryNode node, final String action, final TransportRequest request,
                                                           final TransportRequestOptions options, TransportResponseHandler<T> handler) {
         if (node == null) {
             throw new ElasticsearchIllegalStateException("can't send request to a null node");
         }
+        // req id 自动加1
         final long requestId = newRequestId();
         final TimeoutHandler timeoutHandler;
         try {
 
+            // 用于处理异常
             if (options.timeout() == null) {
                 timeoutHandler = null;
             } else {
@@ -273,6 +292,8 @@ public class TransportService extends AbstractLifecycleComponent<TransportServic
                 assert options.timeout() != null;
                 timeoutHandler.future = threadPool.schedule(options.timeout(), ThreadPool.Names.GENERIC, timeoutHandler);
             }
+
+            // netty处理请求
             transport.sendRequest(node, requestId, action, request, options);
         } catch (final Throwable e) {
             // usually happen either because we failed to connect to the node

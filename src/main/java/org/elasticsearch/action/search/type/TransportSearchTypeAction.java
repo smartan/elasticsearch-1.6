@@ -140,9 +140,12 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
 
             // 用来存储每个shard的结果集
             firstResults = new AtomicArray<>(shardsIts.size());
+
             // Not so nice, but we need to know if there're nodes below the supported version
             // and if so fall back to classic scroll (based on from). We need to check every node
             // because we don't to what nodes we end up sending the request (shard may fail or relocate)
+
+            // 判断是否使用scroll
             boolean useSlowScroll = false;
             if (request.scroll() != null) {
                 for (DiscoveryNode discoveryNode : clusterState.nodes()) {
@@ -176,16 +179,26 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             }
         }
 
+        /**
+         * Query_Then_Fetch 第一阶段QUERY
+         * @param shardIndex    int
+         * @param shardIt       ShardIterator
+         * @param shard         ShardRouting
+         */
         void performFirstPhase(final int shardIndex, final ShardIterator shardIt, final ShardRouting shard) {
+            // shard 不可用
             if (shard == null) {
                 // no more active shards... (we should not really get here, but just for safety)
                 onFirstPhaseResult(shardIndex, null, null, shardIt, new NoShardAvailableActionException(shardIt.shardId()));
             } else {
+                // 要访问的shard所在Node对象
                 final DiscoveryNode node = nodes.get(shard.currentNodeId());
                 if (node == null) { // shard不可用
                     onFirstPhaseResult(shardIndex, shard, null, shardIt, new NoShardAvailableActionException(shardIt.shardId()));
                 } else {
+                    // 遍历索引列表并选择给定索引的有效过滤别名列表
                     String[] filteringAliases = clusterState.metaData().filteringAliases(shard.index(), request.indices());
+                    // 执行第一阶段请求
                     sendExecuteFirstPhase(node, internalSearchRequest(shard, shardsIts.size(), request, filteringAliases, startTime(), useSlowScroll), new SearchServiceListener<FirstResult>() {
                         @Override
                         public void onResult(FirstResult result) {
@@ -228,12 +241,21 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
             }
         }
 
+        /**
+         * shard 为null 或者 node为null 或者 第一阶段执行失败执行此方法
+         * @param shardIndex
+         * @param shard
+         * @param nodeId
+         * @param shardIt
+         * @param t
+         */
         void onFirstPhaseResult(final int shardIndex, @Nullable ShardRouting shard, @Nullable String nodeId, final ShardIterator shardIt, Throwable t) {
             // we always add the shard failure for a specific shard instance
             // we do make sure to clean it on a successful response from a shard
             SearchShardTarget shardTarget = new SearchShardTarget(nodeId, shardIt.shardId().getIndex(), shardIt.shardId().getId());
             addShardFailure(shardIndex, shardTarget, t);
 
+            // 如果已经执行的shard和期望执行的shard数一致
             if (totalOps.incrementAndGet() == expectedTotalOps) {
                 if (logger.isDebugEnabled()) {
                     if (t != null && !TransportActions.isShardNotAvailableException(t)) {
@@ -254,6 +276,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
                     raiseEarlyFailure(new SearchPhaseExecutionException(firstPhaseName(), "all shards failed", buildShardFailures()));
                 } else {
                     try {
+                        // 进入第二阶段
                         innerMoveToSecondPhase();
                     } catch (Throwable e) {
                         raiseEarlyFailure(new ReduceSearchPhaseException(firstPhaseName(), "", e, buildShardFailures()));

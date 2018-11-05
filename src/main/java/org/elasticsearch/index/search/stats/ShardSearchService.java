@@ -78,6 +78,10 @@ public class ShardSearchService extends AbstractIndexShardComponent {
         return new SearchStats(total, openContexts.count(), groupsSt);
     }
 
+    /**
+     * Query预处理
+     * @param searchContext     SearchContext
+     */
     public void onPreQueryPhase(SearchContext searchContext) {
         totalStats.queryCurrent.inc();
         if (searchContext.groupStats() != null) {
