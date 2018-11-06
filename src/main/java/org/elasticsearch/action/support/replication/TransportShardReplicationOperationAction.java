@@ -228,7 +228,6 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
 
     /**
      * 对应 transportReplicaAction, 例如 indices:data/write/index
-     *
      */
     class ReplicaOperationTransportHandler extends BaseTransportRequestHandler<ReplicaOperationRequest> {
 
@@ -249,14 +248,15 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
         }
 
         /**
-         * 接收到副本请求message
-         * @param request
-         * @param channel
-         * @throws Exception
+         * 接收副本请求message
+         * @param request   ReplicaOperationRequest
+         * @param channel   TransportChannel
+         * @throws Exception    异常
          */
         @Override
         public void messageReceived(final ReplicaOperationRequest request, final TransportChannel channel) throws Exception {
             try (Releasable shardReference = getIndexShardOperationsCounter(request.shardId)) {
+                // TransportIndexAction  TransportDeleteAction  TransportShardBulkAction  TransportShardDeleteAction  TransportShardDeleteByQueryAction
                 shardOperationOnReplica(request);
             } catch (Throwable t) {
                 failReplicaIfNeeded(request.shardId.getIndex(), request.shardId.id(), t);
