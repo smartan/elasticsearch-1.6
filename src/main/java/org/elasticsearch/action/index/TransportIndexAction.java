@@ -77,8 +77,10 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
         super(settings, IndexAction.NAME, transportService, clusterService, indicesService, threadPool, shardStateAction, actionFilters);
         this.createIndexAction = createIndexAction;
         this.mappingUpdatedAction = mappingUpdatedAction;
+
         // action.auto_create_index 参数
         this.autoCreateIndex = new AutoCreateIndex(settings);
+
         this.allowIdGeneration = settings.getAsBoolean("action.allow_id_generation", true);
     }
 
@@ -90,8 +92,9 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
     @Override
     protected void doExecute(final IndexRequest request, final ActionListener<IndexResponse> listener) {
         // if we don't have a master, we don't have metadata, that's fine, let it find a master using create index API
-        // 如果允许自动创建索引
+        // 判断是否要创建索引, action.auto_create_index参数值和索引中是否已经存在request.index()为判断依据
         if (autoCreateIndex.shouldAutoCreate(request.index(), clusterService.state())) {
+            // 如果要创建索引
             CreateIndexRequest createIndexRequest = new CreateIndexRequest(request);
             // 索引名 index
             createIndexRequest.index(request.index());
@@ -99,15 +102,15 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
             createIndexRequest.mapping(request.type());
             // 创建索引的原因
             createIndexRequest.cause("auto(index api)");
-            // 超时时间
+            // master node 连接超时时间
             createIndexRequest.masterNodeTimeout(request.timeout());
 
+            // 连接master, 创建索引名index
             // TransportMasterNodeOperationAction.doExecute()
-            // 创建索引
             createIndexAction.execute(createIndexRequest, new ActionListener<CreateIndexResponse>() {
                 @Override
                 public void onResponse(CreateIndexResponse result) {
-                    // 向索引中添加文档信息
+                    // 索引创建完成, 向索引中添加文档信息
                     innerExecute(request, listener);
                 }
 
@@ -127,7 +130,8 @@ public class TransportIndexAction extends TransportShardReplicationOperationActi
                 }
             });
         } else {
-            innerExecute(request, listener);  // 索引已经存在
+            // 索引已经存在, 直接向索引中添加文档
+            innerExecute(request, listener);
         }
     }
 

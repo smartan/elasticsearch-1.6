@@ -85,7 +85,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
     }
 
     /**
-     * 执行创建索引
+     * Master 节点执行创建索引
      * @param request    创建索引的请求 Request
      * @param listener   ActionListener
      */
@@ -95,7 +95,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
     }
 
     /**
-     * 内部创建索引逻辑
+     * Master节点内部创建索引逻辑
      * @param request    Request
      * @param listener   ActionListener
      * @param observer   ClusterStateObserver
@@ -104,9 +104,10 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
     private void innerExecute(final Request request, final ActionListener<Response> listener, final ClusterStateObserver observer, final boolean retrying) {
         final ClusterState clusterState = observer.observedState();
         final DiscoveryNodes nodes = clusterState.nodes();
-        // 判断当前节点是否master
+        // 判断当前节点是否master, 因为索引创建过程必须在master节点上完成
         if (nodes.localNodeMaster() || localExecute(request)) {
             // check for block, if blocked, retry, else, execute locally
+            // TransportCreateIndexAction.checkBlock()
             final ClusterBlockException blockException = checkBlock(request, clusterState);
             if (blockException != null) {
                 if (!blockException.retryable()) {
@@ -118,6 +119,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                         new ClusterStateObserver.Listener() {
                             @Override
                             public void onNewClusterState(ClusterState state) {
+                                // 集群状态发生了改变, 重新执行该方法创建index
                                 innerExecute(request, listener, observer, false);
                             }
 
@@ -140,8 +142,8 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                 );
 
             } else {
-                // 如果没有block
                 try {
+                    // 如果没有block
                     threadPool.executor(executor).execute(new Runnable() {
                         @Override
                         public void run() {
@@ -159,6 +161,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
         } else {
             // 如果当前节点不是master且集群没有master
             if (nodes.masterNode() == null) {
+                // 不重试, 直接抛出异常
                 if (retrying) {
                     listener.onFailure(new MasterNotDiscoveredException());
                 } else {
@@ -167,6 +170,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                             new ClusterStateObserver.Listener() {
                                 @Override
                                 public void onNewClusterState(ClusterState state) {
+                                    // 集群状态发生了改变, 重新执行该方法创建index
                                     innerExecute(request, listener, observer, true);
                                 }
 
@@ -199,7 +203,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
             processBeforeDelegationToMaster(request, clusterState);
 
             // CreateIndexAction.NAME = indices:admin/create
-            // 将建索引请求发送给master节点
+            // 将建索引请求发送给master节点, 接收的handler为TransportHandler
             transportService.sendRequest(nodes.masterNode(), actionName, request, new BaseTransportResponseHandler<Response>() {
                 @Override
                 public Response newInstance() {

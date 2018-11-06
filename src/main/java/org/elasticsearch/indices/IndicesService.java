@@ -291,6 +291,14 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
         return indexService;
     }
 
+    /**
+     * 创建index
+     * @param sIndexName    String
+     * @param settings  Settings
+     * @param localNodeId   String
+     * @return  IndexService
+     * @throws ElasticsearchException   Elasticsearch异常
+     */
     public synchronized IndexService createIndex(String sIndexName, @IndexSettings Settings settings, String localNodeId) throws ElasticsearchException {
         if (!lifecycle.started()) {
             throw new ElasticsearchIllegalStateException("Can't create an index [" + sIndexName + "], node is closed");

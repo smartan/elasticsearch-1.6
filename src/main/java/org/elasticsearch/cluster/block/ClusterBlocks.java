@@ -158,6 +158,12 @@ public class ClusterBlocks {
         }
     }
 
+    /**
+     * 判断index是否blocked
+     * @param level ClusterBlockLevel
+     * @param index String
+     * @return  ClusterBlockException
+     */
     public ClusterBlockException indexBlockedException(ClusterBlockLevel level, String index) {
         if (!indexBlocked(level, index)) {
             return null;

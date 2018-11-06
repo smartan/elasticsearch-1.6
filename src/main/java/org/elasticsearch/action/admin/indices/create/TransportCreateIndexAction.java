@@ -71,7 +71,7 @@ public class TransportCreateIndexAction extends TransportMasterNodeOperationActi
     }
 
     /**
-     * 新建索引
+     * master节点新建索引
      * @param request  CreateIndexRequest
      * @param state  ClusterState
      * @param listener  ActionListener

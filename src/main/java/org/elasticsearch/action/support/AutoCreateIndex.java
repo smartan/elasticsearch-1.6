@@ -34,22 +34,33 @@ public class AutoCreateIndex {
     private final String[] matches;
     private final String[] matches2;
 
+    /**
+     * 构造 AutoCreateIndex
+     * @param settings  Settings
+     */
     public AutoCreateIndex(Settings settings) {
         String value = settings.get("action.auto_create_index");
+        // 如果 action.auto_create_index 参数值是 null 或者明确为 true
         if (value == null || Booleans.isExplicitTrue(value)) {
             needToCheck = true;
             globallyDisabled = false;
+
             matches = null;
             matches2 = null;
         } else if (Booleans.isExplicitFalse(value)) {
+            // 如果 action.auto_create_index 参数值明确是false
             needToCheck = false;
             globallyDisabled = true;
+
             matches = null;
             matches2 = null;
         } else {
             needToCheck = true;
             globallyDisabled = false;
+
+            // 使用逗号分割
             matches = Strings.commaDelimitedListToStringArray(value);
+            // 每个分割字符去掉首字符
             matches2 = new String[matches.length];
             for (int i = 0; i < matches.length; i++) {
                 matches2[i] = matches[i].substring(1);
@@ -65,22 +76,29 @@ public class AutoCreateIndex {
     }
 
     /**
+     * 是否应该自动创建索引
      * Should the index be auto created?
      */
     public boolean shouldAutoCreate(String index, ClusterState state) {
+        // action.auto_create_index 是 false
+        // 不再继续检查, 无法自动创建索引
         if (!needToCheck) {
             return false;
         }
+        // 如果索引或者别名中已经包含了index
         if (state.metaData().hasConcreteIndex(index)) {
             return false;
         }
+        // action.auto_create_index 是 false
         if (globallyDisabled) {
             return false;
         }
         // matches not set, default value of "true"
+        // action.auto_create_index 是 null 或者是 true 或者是 false
         if (matches == null) {
             return true;
         }
+        // 正则条件判断index是否满足action.auto_create_index
         for (int i = 0; i < matches.length; i++) {
             char c = matches[i].charAt(0);
             if (c == '-') {
