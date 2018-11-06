@@ -103,9 +103,16 @@ public class TransportShardDeleteByQueryAction extends TransportShardReplication
         return false;
     }
 
+    /**
+     * Delete By Query
+     * @param clusterState  ClusterState
+     * @param shardRequest  PrimaryOperationRequest
+     * @return  Tuple
+     */
     @Override
     protected Tuple<ShardDeleteByQueryResponse, ShardDeleteByQueryRequest> shardOperationOnPrimary(ClusterState clusterState, PrimaryOperationRequest shardRequest) {
         ShardDeleteByQueryRequest request = shardRequest.request;
+        // index shard
         IndexService indexService = indicesService.indexServiceSafe(shardRequest.shardId.getIndex());
         IndexShard indexShard = indexService.shardSafe(shardRequest.shardId.id());
 
@@ -115,6 +122,7 @@ public class TransportShardDeleteByQueryAction extends TransportShardReplication
         try {
             Engine.DeleteByQuery deleteByQuery = indexShard.prepareDeleteByQuery(request.source(), request.filteringAliases(), Engine.Operation.Origin.PRIMARY, request.types());
             SearchContext.current().parsedQuery(new ParsedQuery(deleteByQuery.query()));
+            // delete
             indexShard.deleteByQuery(deleteByQuery);
         } finally {
             try (SearchContext searchContext = SearchContext.current()) {
@@ -125,6 +133,10 @@ public class TransportShardDeleteByQueryAction extends TransportShardReplication
     }
 
 
+    /**
+     * Delete By Query 中复制分片数据到副本上
+     * @param shardRequest  ReplicaOperationRequest
+     */
     @Override
     protected void shardOperationOnReplica(ReplicaOperationRequest shardRequest) {
         ShardDeleteByQueryRequest request = shardRequest.request;

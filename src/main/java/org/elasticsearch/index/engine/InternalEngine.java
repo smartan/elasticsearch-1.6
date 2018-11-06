@@ -497,6 +497,11 @@ public class InternalEngine extends Engine {
         }
     }
 
+    /**
+     * Delete
+     * @param delete    Delete
+     * @throws EngineException  Engine异常
+     */
     @Override
     public void delete(Delete delete) throws EngineException {
         try (ReleasableLock lock = readLock.acquire()) {
@@ -520,6 +525,12 @@ public class InternalEngine extends Engine {
         }
     }
 
+    /**
+     * Internal Delete
+     * 调用index writer 的deleteDocuments 将document删除
+     * @param delete    Delete
+     * @throws IOException  IO 异常
+     */
     private void innerDelete(Delete delete) throws IOException {
         synchronized (dirtyLock(delete.uid())) {
             final long currentVersion;
@@ -565,6 +576,11 @@ public class InternalEngine extends Engine {
         }
     }
 
+    /**
+     * delete by query
+     * @param delete    DeleteByQuery
+     * @throws EngineException  Engine 异常
+     */
     @Override
     public void delete(DeleteByQuery delete) throws EngineException {
         try (ReleasableLock lock = readLock.acquire()) {
@@ -580,6 +596,11 @@ public class InternalEngine extends Engine {
         }
     }
 
+    /**
+     * inner delete
+     * @param delete    DeleteByQuery
+     * @throws EngineException  Engine 异常
+     */
     private void innerDelete(DeleteByQuery delete) throws EngineException {
         try {
             Query query;

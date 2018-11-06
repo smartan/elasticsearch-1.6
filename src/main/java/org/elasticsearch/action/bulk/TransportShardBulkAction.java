@@ -128,27 +128,41 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
         return clusterState.routingTable().index(request.concreteIndex()).shard(request.request().shardId()).shardsIt();
     }
 
+    /**
+     * Bulk 方式在primary上操作索引
+     * @param clusterState  ClusterState
+     * @param shardRequest  PrimaryOperationRequest
+     * @return  Tuple
+     */
     @Override
     protected Tuple<BulkShardResponse, BulkShardRequest> shardOperationOnPrimary(ClusterState clusterState, PrimaryOperationRequest shardRequest) {
         final BulkShardRequest request = shardRequest.request;
+        // 找到index shard
         IndexService indexService = indicesService.indexServiceSafe(request.index());
         IndexShard indexShard = indexService.shardSafe(shardRequest.shardId.id());
+
+        // 要更新的mapping
         final Set<String> mappingTypesToUpdate = Sets.newHashSet();
 
         long[] preVersions = new long[request.items().length];
         VersionType[] preVersionTypes = new VersionType[request.items().length];
+        // 处理每一个bulk的item
         for (int requestIndex = 0; requestIndex < request.items().length; requestIndex++) {
             BulkItemRequest item = request.items()[requestIndex];
+            // Index Request
             if (item.request() instanceof IndexRequest) {
                 IndexRequest indexRequest = (IndexRequest) item.request();
+                // version
                 preVersions[requestIndex] = indexRequest.version();
                 preVersionTypes[requestIndex] = indexRequest.versionType();
                 try {
                     try {
+                        // index or create a document
                         WriteResult result = shardIndexOperation(request, indexRequest, clusterState, indexShard, true);
                         // add the response
                         IndexResponse indexResponse = result.response();
                         setResponse(item, new BulkItemResponse(item.id(), indexRequest.opType().lowercase(), indexResponse));
+                        // 要更新mapping
                         if (result.mappingTypeToUpdate != null) {
                             mappingTypesToUpdate.add(result.mappingTypeToUpdate);
                         }
@@ -160,6 +174,7 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
                     }
                 } catch (Throwable e) {
                     // rethrow the failure if we are going to retry on primary and let parent failure to handle it
+                    // shard not available
                     if (retryPrimaryException(e)) {
                         // restore updated versions...
                         for (int j = 0; j < requestIndex; j++) {
@@ -189,6 +204,7 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
                     }
                 }
             } else if (item.request() instanceof DeleteRequest) {
+                // Delete Request
                 DeleteRequest deleteRequest = (DeleteRequest) item.request();
                 preVersions[requestIndex] = deleteRequest.version();
                 preVersionTypes[requestIndex] = deleteRequest.versionType();
@@ -222,10 +238,11 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
                     }
                 }
             } else if (item.request() instanceof UpdateRequest) {
+                // Update Request
                 UpdateRequest updateRequest = (UpdateRequest) item.request();
                 preVersions[requestIndex] = updateRequest.version();
                 preVersionTypes[requestIndex] = updateRequest.versionType();
-                //  We need to do the requested retries plus the initial attempt. We don't do < 1+retry_on_conflict because retry_on_conflict may be Integer.MAX_VALUE
+                // We need to do the requested retries plus the initial attempt. We don't do < 1+retry_on_conflict because retry_on_conflict may be Integer.MAX_VALUE
                 for (int updateAttemptsCount = 0; updateAttemptsCount <= updateRequest.retryOnConflict(); updateAttemptsCount++) {
                     UpdateResult updateResult;
                     try {
@@ -234,7 +251,7 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
                         updateResult = new UpdateResult(null, null, false, t, null);
                     }
                     if (updateResult.success()) {
-
+                        // 构造响应结果
                         switch (updateResult.result.operation()) {
                             case UPSERT:
                             case INDEX:
@@ -331,6 +348,7 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
             assert preVersionTypes[requestIndex] != null;
         }
 
+        // update mapping
         for (String mappingTypToUpdate : mappingTypesToUpdate) {
             DocumentMapper docMapper = indexService.mapperService().documentMapper(mappingTypToUpdate);
             if (docMapper != null) {
@@ -380,6 +398,15 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
 
     }
 
+    /**
+     * Bulk Index 操作索引
+     * @param request       BulkShardRequest
+     * @param indexRequest  IndexRequest
+     * @param clusterState  ClusterState
+     * @param indexShard    IndexShard
+     * @param processed boolean
+     * @return  WriteResult
+     */
     private WriteResult shardIndexOperation(BulkShardRequest request, IndexRequest indexRequest, ClusterState clusterState,
                                             IndexShard indexShard, boolean processed) {
 
@@ -395,6 +422,7 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
             indexRequest.process(clusterState.metaData(), mappingMd, allowIdGeneration, request.index());
         }
 
+        // source
         SourceToParse sourceToParse = SourceToParse.source(SourceToParse.Origin.PRIMARY, indexRequest.source()).type(indexRequest.type()).id(indexRequest.id())
                 .routing(indexRequest.routing()).parent(indexRequest.parent()).timestamp(indexRequest.timestamp()).ttl(indexRequest.ttl());
 
@@ -405,21 +433,26 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
         boolean created;
         Engine.IndexingOperation op;
         try {
+            // index
             if (indexRequest.opType() == IndexRequest.OpType.INDEX) {
+                // index obj
                 Engine.Index index = indexShard.prepareIndex(sourceToParse, indexRequest.version(), indexRequest.versionType(), Engine.Operation.Origin.PRIMARY, request.canHaveDuplicates() || indexRequest.canHaveDuplicates());
                 if (index.parsedDoc().mappingsModified()) {
                     mappingTypeToUpdate = indexRequest.type();
                 }
+                // index a document
                 indexShard.index(index);
                 version = index.version();
                 op = index;
                 created = index.created();
             } else {
+                // create obj
                 Engine.Create create = indexShard.prepareCreate(sourceToParse, indexRequest.version(), indexRequest.versionType(), Engine.Operation.Origin.PRIMARY,
                         request.canHaveDuplicates() || indexRequest.canHaveDuplicates(), indexRequest.autoGeneratedId());
                 if (create.parsedDoc().mappingsModified()) {
                     mappingTypeToUpdate = indexRequest.type();
                 }
+                // create a document
                 indexShard.create(create);
                 version = create.version();
                 op = create;
@@ -439,9 +472,20 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
         return new WriteResult(indexResponse, mappingTypeToUpdate, op);
     }
 
+    /**
+     * Delete Document Operation
+     * @param request   BulkShardRequest
+     * @param deleteRequest DeleteRequest
+     * @param indexShard    IndexShard
+     * @return  WriteResult
+     */
     private WriteResult shardDeleteOperation(BulkShardRequest request, DeleteRequest deleteRequest, IndexShard indexShard) {
+        // prepare a delete obj
         Engine.Delete delete = indexShard.prepareDelete(deleteRequest.type(), deleteRequest.id(), deleteRequest.version(), deleteRequest.versionType(), Engine.Operation.Origin.PRIMARY);
+
+        // delete
         indexShard.delete(delete);
+
         // update the request with the version so it will go to the replicas
         deleteRequest.versionType(delete.versionType().versionTypeForReplicationAndRecovery());
         deleteRequest.version(delete.version());
@@ -505,13 +549,23 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
 
     }
 
+    /**
+     * Bulk 请求是 UpdateRequest
+     * @param clusterState      ClusterState
+     * @param bulkShardRequest  BulkShardRequest
+     * @param updateRequest UpdateRequest
+     * @param indexShard    IndexShard
+     * @return  UpdateResult
+     */
     private UpdateResult shardUpdateOperation(ClusterState clusterState, BulkShardRequest bulkShardRequest, UpdateRequest updateRequest, IndexShard indexShard) {
         UpdateHelper.Result translate = updateHelper.prepare(updateRequest, indexShard);
         switch (translate.operation()) {
             case UPSERT:
             case INDEX:
+                // index request
                 IndexRequest indexRequest = translate.action();
                 try {
+                    // 调用index
                     WriteResult result = shardIndexOperation(bulkShardRequest, indexRequest, clusterState, indexShard, false);
                     return new UpdateResult(translate, indexRequest, result);
                 } catch (Throwable t) {
@@ -523,8 +577,10 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
                     return new UpdateResult(translate, indexRequest, retry, t, null);
                 }
             case DELETE:
+                // delete request
                 DeleteRequest deleteRequest = translate.action();
                 try {
+                    // 调用delete
                     WriteResult result = shardDeleteOperation(bulkShardRequest, deleteRequest, indexShard);
                     return new UpdateResult(translate, deleteRequest, result);
                 } catch (Throwable t) {
@@ -536,6 +592,7 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
                     return new UpdateResult(translate, deleteRequest, retry, t, null);
                 }
             case NONE:
+                // update request
                 UpdateResponse updateResponse = translate.action();
                 indexShard.indexingService().noopUpdate(updateRequest.type());
                 return new UpdateResult(translate, updateResponse);
@@ -545,6 +602,10 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
     }
 
 
+    /**
+     * Bulk 复制分片的数据到副本上
+     * @param shardRequest ReplicaOperationRequest
+     */
     protected void shardOperationOnReplica(ReplicaOperationRequest shardRequest) {
         IndexShard indexShard = indicesService.indexServiceSafe(shardRequest.shardId.getIndex()).shardSafe(shardRequest.shardId.id());
         final BulkShardRequest request = shardRequest.request;
@@ -559,10 +620,12 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
                     SourceToParse sourceToParse = SourceToParse.source(SourceToParse.Origin.REPLICA, indexRequest.source()).type(indexRequest.type()).id(indexRequest.id())
                             .routing(indexRequest.routing()).parent(indexRequest.parent()).timestamp(indexRequest.timestamp()).ttl(indexRequest.ttl());
 
+                    // index
                     if (indexRequest.opType() == IndexRequest.OpType.INDEX) {
                         Engine.Index index = indexShard.prepareIndex(sourceToParse, indexRequest.version(), indexRequest.versionType(), Engine.Operation.Origin.REPLICA, request.canHaveDuplicates() || indexRequest.canHaveDuplicates());
                         indexShard.index(index);
                     } else {
+                        // create
                         Engine.Create create = indexShard.prepareCreate(sourceToParse,
                                 indexRequest.version(), indexRequest.versionType(),
                                 Engine.Operation.Origin.REPLICA, request.canHaveDuplicates() || indexRequest.canHaveDuplicates(), indexRequest.autoGeneratedId());
@@ -578,6 +641,7 @@ public class TransportShardBulkAction extends TransportShardReplicationOperation
             } else if (item.request() instanceof DeleteRequest) {
                 DeleteRequest deleteRequest = (DeleteRequest) item.request();
                 try {
+                    // delete
                     Engine.Delete delete = indexShard.prepareDelete(deleteRequest.type(), deleteRequest.id(), deleteRequest.version(), deleteRequest.versionType(), Engine.Operation.Origin.REPLICA);
                     indexShard.delete(delete);
                 } catch (Throwable e) {

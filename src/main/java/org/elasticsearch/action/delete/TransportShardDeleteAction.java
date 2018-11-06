@@ -81,11 +81,18 @@ public class TransportShardDeleteAction extends TransportShardReplicationOperati
         return false;
     }
 
+    /**
+     * 直接Delete
+     * @param clusterState  ClusterState
+     * @param shardRequest  PrimaryOperationRequest
+     * @return  Tuple
+     */
     @Override
     protected Tuple<ShardDeleteResponse, ShardDeleteRequest> shardOperationOnPrimary(ClusterState clusterState, PrimaryOperationRequest shardRequest) {
         ShardDeleteRequest request = shardRequest.request;
         IndexShard indexShard = indicesService.indexServiceSafe(shardRequest.shardId.getIndex()).shardSafe(shardRequest.shardId.id());
         Engine.Delete delete = indexShard.prepareDelete(request.type(), request.id(), request.version(), VersionType.INTERNAL, Engine.Operation.Origin.PRIMARY);
+        // delete
         indexShard.delete(delete);
         // update the version to happen on the replicas
         request.version(delete.version());
@@ -103,6 +110,10 @@ public class TransportShardDeleteAction extends TransportShardReplicationOperati
         return new Tuple<>(response, shardRequest.request);
     }
 
+    /**
+     * Shard Delete 复制分片的数据到副本上
+     * @param shardRequest  ReplicaOperationRequest
+     */
     @Override
     protected void shardOperationOnReplica(ReplicaOperationRequest shardRequest) {
         ShardDeleteRequest request = shardRequest.request;

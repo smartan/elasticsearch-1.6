@@ -493,6 +493,16 @@ public class IndexShard extends AbstractIndexShardComponent {
         return create.parsedDoc();
     }
 
+    /**
+     * 准备要index的索引对象
+     * @param source    SourceToParse
+     * @param version   long
+     * @param versionType   VersionType
+     * @param origin    Engine.Operation.Origin
+     * @param canHaveDuplicates boolean
+     * @return  Engine.Index
+     * @throws ElasticsearchException   Elasticsearch异常
+     */
     public Engine.Index prepareIndex(SourceToParse source, long version, VersionType versionType, Engine.Operation.Origin origin, boolean canHaveDuplicates) throws ElasticsearchException {
         long startTime = System.nanoTime();
         Tuple<DocumentMapper, Boolean> docMapper = mapperService.documentMapperWithAutoCreate(source.type());
@@ -538,6 +548,11 @@ public class IndexShard extends AbstractIndexShardComponent {
         return new Engine.Delete(type, id, docMapper.uidMapper().term(type, id), version, versionType, origin, startTime, false);
     }
 
+    /**
+     * delete
+     * @param delete    Engine.Delete
+     * @throws ElasticsearchException   Elasticsearch 异常
+     */
     public void delete(Engine.Delete delete) throws ElasticsearchException {
         writeAllowed(delete.origin());
         delete = indexingService.preDelete(delete);
@@ -584,6 +599,11 @@ public class IndexShard extends AbstractIndexShardComponent {
         return new Engine.DeleteByQuery(query, source, filteringAliases, aliasFilter, parentFilter, origin, startTime, types);
     }
 
+    /**
+     * delete
+     * @param deleteByQuery Engine.DeleteByQuery
+     * @throws ElasticsearchException   Elasticsearch 异常
+     */
     public void deleteByQuery(Engine.DeleteByQuery deleteByQuery) throws ElasticsearchException {
         writeAllowed(deleteByQuery.origin());
         if (logger.isTraceEnabled()) {

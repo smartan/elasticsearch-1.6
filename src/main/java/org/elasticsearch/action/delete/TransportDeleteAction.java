@@ -189,12 +189,18 @@ public class TransportDeleteAction extends TransportShardReplicationOperationAct
         return new Tuple<>(response, shardRequest.request);
     }
 
+    /**
+     * Delete中复制分片数据到副本上
+     * @param shardRequest  ReplicaOperationRequest
+     */
     @Override
     protected void shardOperationOnReplica(ReplicaOperationRequest shardRequest) {
         DeleteRequest request = shardRequest.request;
         IndexShard indexShard = indicesService.indexServiceSafe(shardRequest.shardId.getIndex()).shardSafe(shardRequest.shardId.id());
+        // 准备Engine.Delete
         Engine.Delete delete = indexShard.prepareDelete(request.type(), request.id(), request.version(), request.versionType(), Engine.Operation.Origin.REPLICA);
 
+        // delete a document
         indexShard.delete(delete);
 
         if (request.refresh()) {

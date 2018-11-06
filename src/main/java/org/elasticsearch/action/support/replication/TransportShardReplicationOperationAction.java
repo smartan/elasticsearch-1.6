@@ -226,6 +226,10 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
         }
     }
 
+    /**
+     * 对应 transportReplicaAction, 例如 indices:data/write/index
+     *
+     */
     class ReplicaOperationTransportHandler extends BaseTransportRequestHandler<ReplicaOperationRequest> {
 
         @Override
@@ -244,6 +248,12 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
             return true;
         }
 
+        /**
+         * 接收到副本请求message
+         * @param request
+         * @param channel
+         * @throws Exception
+         */
         @Override
         public void messageReceived(final ReplicaOperationRequest request, final TransportChannel channel) throws Exception {
             try (Releasable shardReference = getIndexShardOperationsCounter(request.shardId)) {
@@ -533,6 +543,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
         }
 
         /**
+         * 在replication上复制shard数据
          * upon success, finish the first phase and transfer responsibility to the {@link ReplicationPhase}
          */
         void finishAndMoveToReplication(ReplicationPhase replicationPhase) {
@@ -592,7 +603,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
                 indexShardReference = getIndexShardOperationsCounter(primary.shardId());
                 // 构建primary operation请求
                 PrimaryOperationRequest por = new PrimaryOperationRequest(primary.id(), internalRequest.concreteIndex(), internalRequest.request());
-                // 执行shard上的索引操作
+                // 执行shard上的索引操作, TransportDeleteAction  TransportIndexAction  TransportShardBulkAction  TransportShardDeleteAction  TransportShardDeleteByQueryAction
                 Tuple<Response, ReplicaRequest> primaryResponse = shardOperationOnPrimary(observer.observedState(), por);
                 logger.trace("operation completed on primary [{}]", primary);
 
@@ -733,6 +744,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
         /**
          * the constructor doesn't take any action, just calculates state. Call {@link #run()} to start
          * replicating.
+         * 计算集群状态, 用来启动分片操作
          */
         public ReplicationPhase(ShardIterator originalShardIt, ReplicaRequest replicaRequest, Response finalResponse,
                                 ClusterStateObserver observer, ShardRouting originalPrimaryShard,
@@ -742,6 +754,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
             this.finalResponse = finalResponse;
             this.originalPrimaryShard = originalPrimaryShard;
             this.observer = observer;
+            // meta data
             indexMetaData = observer.observedState().metaData().index(internalRequest.concreteIndex());
             this.indexShardReference = indexShardReference;
 
@@ -855,6 +868,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
         }
 
         /**
+         * 分片数据拷贝到副本
          * start sending current requests to replicas
          */
         @Override
@@ -874,7 +888,11 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
                 // we index on a replica that is initializing as well since we might not have got the event
                 // yet that it was started. We will get an exception IllegalShardState exception if its not started
                 // and that's fine, we will ignore it
+
+                // 遍历所有的shard, 区分primary shard 和 replication shard
+                // 如果shard 是 primary shard, 那么只在新shard上拷贝数据
                 if (shard.primary()) {
+                    // 新primary shard
                     if (originalPrimaryShard.currentNodeId().equals(shard.currentNodeId()) == false) {
                         // there is a new primary, we'll have to replicate to it.
                         performOnReplica(shard, shard.currentNodeId());
@@ -882,8 +900,10 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
                     if (shard.relocating()) {
                         performOnReplica(shard, shard.relocatingNodeId());
                     }
-                } else if (IndexMetaData.isIndexUsingShadowReplicas(indexMetaData.settings()) == false) {
+                } else if (IndexMetaData.isIndexUsingShadowReplicas(indexMetaData.settings()) == false) {  // index.shadow_replicas = false
+                    // shard是replication shard, 那么在所有的replication上拷贝数据
                     performOnReplica(shard, shard.currentNodeId());
+                    // 如果shard迁移了, 继续执行
                     if (shard.relocating()) {
                         performOnReplica(shard, shard.relocatingNodeId());
                     }
@@ -892,6 +912,7 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
         }
 
         /**
+         * 如果是local节点则直接执行, 否则将操作发送到指定节点上
          * send operation to the given node or perform it if local
          */
         void performOnReplica(final ShardRouting shard, final String nodeId) {
@@ -902,10 +923,14 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
                 return;
             }
 
+            // 构建shard请求
             final ReplicaOperationRequest shardRequest = new ReplicaOperationRequest(shardIt.shardId(), replicaRequest);
 
+            // 如果要执行的节点不是当前节点, 则将请求发送到指定的node上
             if (!nodeId.equals(observer.observedState().nodes().localNodeId())) {
                 final DiscoveryNode node = observer.observedState().nodes().get(nodeId);
+
+                // transportReplicaAction 对应 ReplicaOperationTransportHandler
                 transportService.sendRequest(node, transportReplicaAction, shardRequest,
                         transportOptions, new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
                             @Override
@@ -926,12 +951,14 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
 
                         });
             } else {
+                // 提交给线程池操作
                 if (replicaRequest.operationThreaded()) {
                     try {
                         threadPool.executor(executor).execute(new AbstractRunnable() {
                             @Override
                             protected void doRun() {
                                 try {
+                                    // copy
                                     shardOperationOnReplica(shardRequest);
                                     onReplicaSuccess();
                                 } catch (Throwable e) {
@@ -956,7 +983,9 @@ public abstract class TransportShardReplicationOperationAction<Request extends S
                         onReplicaFailure(nodeId, e);
                     }
                 } else {
+                    // 直接调用shardOperationOnReplica
                     try {
+                        // copy
                         shardOperationOnReplica(shardRequest);
                         onReplicaSuccess();
                     } catch (Throwable e) {
