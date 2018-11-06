@@ -32,7 +32,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.elasticsearch.action.support.PlainActionFuture.newFuture;
 
 /**
- *
+ *  Action 基础类
+ *  其他Action 类要继承这个类并且重写doExecute()方法
  */
 public abstract class TransportAction<Request extends ActionRequest, Response extends ActionResponse> extends AbstractComponent {
 
@@ -56,6 +57,11 @@ public abstract class TransportAction<Request extends ActionRequest, Response ex
         return future;
     }
 
+    /**
+     * action 的入口方法
+     * @param request   Request
+     * @param listener  ActionListener
+     */
     public final void execute(Request request, ActionListener<Response> listener) {
         if (forceThreadedListener()) {
             request.listenerThreaded(true);
@@ -72,6 +78,7 @@ public abstract class TransportAction<Request extends ActionRequest, Response ex
 
         if (filters.length == 0) {
             try {
+                // TransportAction 子类都要重写这个方法
                 doExecute(request, listener);
             } catch(Throwable t) {
                 logger.trace("Error during transport action execution.", t);
@@ -87,6 +94,7 @@ public abstract class TransportAction<Request extends ActionRequest, Response ex
         return false;
     }
 
+    // 抽象方法, 用于子类重写
     protected abstract void doExecute(Request request, ActionListener<Response> listener);
 
     static final class ThreadedActionListener<Response> implements ActionListener<Response> {
