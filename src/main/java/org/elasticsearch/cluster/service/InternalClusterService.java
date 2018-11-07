@@ -275,7 +275,7 @@ public class InternalClusterService extends AbstractLifecycleComponent<ClusterSe
             final UpdateTask task = new UpdateTask(source, priority, updateTask);
             if (updateTask instanceof TimeoutClusterStateUpdateTask) {
                 final TimeoutClusterStateUpdateTask timeoutUpdateTask = (TimeoutClusterStateUpdateTask) updateTask;
-                // 执行Task的execute方法
+                // 执行UpdateTask的run方法
                 updateTasksExecutor.execute(task, threadPool.scheduler(), timeoutUpdateTask.timeout(), new Runnable() {
                     @Override
                     public void run() {

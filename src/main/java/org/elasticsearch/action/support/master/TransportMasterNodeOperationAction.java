@@ -86,7 +86,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
 
     /**
      * Master 节点执行创建索引
-     * @param request    创建索引的请求 Request
+     * @param request    Master节点的请求 Request
      * @param listener   ActionListener
      */
     @Override
