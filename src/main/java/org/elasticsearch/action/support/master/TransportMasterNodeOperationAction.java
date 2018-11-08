@@ -22,7 +22,6 @@ package org.elasticsearch.action.support.master;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.cluster.ClusterChangedEvent;
@@ -85,7 +84,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
     }
 
     /**
-     * Master 节点执行创建索引
+     * 重写TransportAction的doExecute()方法
      * @param request    Master节点的请求 Request
      * @param listener   ActionListener
      */
@@ -95,7 +94,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
     }
 
     /**
-     * Master节点内部创建索引逻辑
+     * 选择在master节点执行masterOperation()
      * @param request    Request
      * @param listener   ActionListener
      * @param observer   ClusterStateObserver
@@ -104,7 +103,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
     private void innerExecute(final Request request, final ActionListener<Response> listener, final ClusterStateObserver observer, final boolean retrying) {
         final ClusterState clusterState = observer.observedState();
         final DiscoveryNodes nodes = clusterState.nodes();
-        // 判断当前节点是否master, 因为索引创建过程必须在master节点上完成
+        // 判断当前节点是否master, 因为操作元数据必须在master节点上完成
         if (nodes.localNodeMaster() || localExecute(request)) {
             // check for block, if blocked, retry, else, execute locally
             // TransportCreateIndexAction.checkBlock()
@@ -119,7 +118,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                         new ClusterStateObserver.Listener() {
                             @Override
                             public void onNewClusterState(ClusterState state) {
-                                // 集群状态发生了改变, 重新执行该方法创建index
+                                // 集群状态发生了改变, 重新执行该方法
                                 innerExecute(request, listener, observer, false);
                             }
 
@@ -170,7 +169,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
                             new ClusterStateObserver.Listener() {
                                 @Override
                                 public void onNewClusterState(ClusterState state) {
-                                    // 集群状态发生了改变, 重新执行该方法创建index
+                                    // 集群状态发生了改变, 重新执行该方法
                                     innerExecute(request, listener, observer, true);
                                 }
 
@@ -203,7 +202,7 @@ public abstract class TransportMasterNodeOperationAction<Request extends MasterN
             processBeforeDelegationToMaster(request, clusterState);
 
             // CreateIndexAction.NAME = indices:admin/create
-            // 将建索引请求发送给master节点, 接收的handler为TransportHandler
+            // 将请求发送给master节点, 接收的handler为TransportHandler
             transportService.sendRequest(nodes.masterNode(), actionName, request, new BaseTransportResponseHandler<Response>() {
                 @Override
                 public Response newInstance() {

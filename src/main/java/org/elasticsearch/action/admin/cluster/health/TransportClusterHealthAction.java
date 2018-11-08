@@ -37,7 +37,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 /**
- *
+ * 集群健康状态Action
  */
 public class TransportClusterHealthAction extends TransportMasterNodeReadOperationAction<ClusterHealthRequest, ClusterHealthResponse> {
 
@@ -73,6 +73,16 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadOperati
         return new ClusterHealthResponse();
     }
 
+    /**
+     * 1 TransportMasterNodeOperationAction的入口方法为doExecute()
+     * 2 masterOperation()重写父类TransportMasterNodeOperationAction的同名方法
+     * 3 如果当前节点是master, TransportMasterNodeOperationAction的doExecute()直接执行子类的重写的masterOperation()方法
+     *   如果当前节点不是master, TransportMasterNodeOperationAction的doExecute()则需要执行远程master节点的masterOperation()方法
+     * @param request   ClusterHealthRequest
+     * @param unusedState   ClusterState
+     * @param listener  ActionListener
+     * @throws ElasticsearchException   Elasticsearch 异常
+     */
     @Override
     protected void masterOperation(final ClusterHealthRequest request, final ClusterState unusedState, final ActionListener<ClusterHealthResponse> listener) throws ElasticsearchException {
         if (request.waitForEvents() != null) {
@@ -88,12 +98,14 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadOperati
                     final long timeoutInMillis = Math.max(0, endTimeMS - TimeValue.nsecToMSec(System.nanoTime()));
                     final TimeValue newTimeout = TimeValue.timeValueMillis(timeoutInMillis);
                     request.timeout(newTimeout);
+                    // 集群状态变更后查询Health
                     executeHealth(request, listener);
                 }
 
                 @Override
                 public void onNoLongerMaster(String source) {
                     logger.trace("stopped being master while waiting for events with priority [{}]. retrying.", request.waitForEvents());
+                    // 重新在master节点上执行masterOperation()
                     doExecute(request, listener);
                 }
 
@@ -109,11 +121,17 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadOperati
                 }
             });
         } else {
+            // 如果没有等待事件, 直接执行executeHealth()方法
             executeHealth(request, listener);
         }
 
     }
 
+    /**
+     * 获取集群的健康状态
+     * @param request   ClusterHealthRequest
+     * @param listener  ActionListener
+     */
     private void executeHealth(final ClusterHealthRequest request, final ActionListener<ClusterHealthResponse> listener) {
         int waitFor = 5;
         if (request.waitForStatus() == null) {
