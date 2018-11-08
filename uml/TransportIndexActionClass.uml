@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>org.elasticsearch.action.index.TransportIndexAction</OriginalElement>
+  <nodes>
+    <node x="755.0" y="100.0">org.elasticsearch.rest.BaseRestHandler</node>
+    <node x="368.0" y="100.0">org.elasticsearch.cluster.metadata.MetaDataCreateIndexService</node>
+    <node x="1359.8849206349207" y="100.0">org.elasticsearch.action.support.replication.ShardReplicationOperationRequest</node>
+    <node x="596.0" y="415.0">org.elasticsearch.http.netty.HttpRequestHandler</node>
+    <node x="0.0" y="100.0">org.elasticsearch.http.netty.NettyHttpServerTransport</node>
+    <node x="310.0" y="335.0">org.elasticsearch.index.shard.IndexShardComponent</node>
+    <node x="946.5" y="180.0">org.elasticsearch.action.support.master.TransportMasterNodeOperationAction</node>
+    <node x="1090.3277116402116" y="100.0">org.elasticsearch.action.support.TransportAction</node>
+    <node x="0.0" y="575.0">org.elasticsearch.client.node.NodeClient</node>
+    <node x="218.0" y="100.0">org.elasticsearch.indices.IndicesService</node>
+    <node x="1303.0" y="260.0">org.elasticsearch.action.index.TransportIndexAction</node>
+    <node x="133.0" y="575.0">org.elasticsearch.client.FilterClient</node>
+    <node x="44.75" y="335.0">org.elasticsearch.client.ElasticsearchClient</node>
+    <node x="1387.6349206349207" y="0.0">org.elasticsearch.action.ActionRequest</node>
+    <node x="587.5" y="0.0">org.elasticsearch.common.component.AbstractComponent</node>
+    <node x="81.75" y="415.0">org.elasticsearch.client.Client</node>
+    <node x="344.0" y="495.0">org.elasticsearch.index.shard.IndexShard</node>
+    <node x="1150.5833333333335" y="0.0">org.elasticsearch.action.ActionResponse</node>
+    <node x="561.0" y="335.0">org.jboss.netty.channel.SimpleChannelUpstreamHandler</node>
+    <node x="943.3792989417989" y="100.0">org.elasticsearch.http.HttpServer</node>
+    <node x="604.0" y="100.0">org.elasticsearch.rest.RestController</node>
+    <node x="864.0" y="335.0">org.elasticsearch.index.engine.Engine</node>
+    <node x="57.75" y="495.0">org.elasticsearch.client.support.AbstractClient</node>
+    <node x="1240.5" y="180.0">org.elasticsearch.action.support.replication.TransportShardReplicationOperationAction</node>
+    <node x="286.0" y="415.0">org.elasticsearch.index.shard.AbstractIndexShardComponent</node>
+    <node x="1018.0" y="335.0">org.elasticsearch.common.util.concurrent.AbstractRunnable</node>
+    <node x="842.0" y="415.0">org.elasticsearch.index.engine.InternalEngine</node>
+    <node x="978.0" y="260.0">org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction</node>
+    <node x="758.0" y="180.0">org.elasticsearch.rest.action.index.RestIndexAction</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="org.elasticsearch.index.shard.AbstractIndexShardComponent" target="org.elasticsearch.index.shard.IndexShardComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.rest.BaseRestHandler" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="828.5" y="80.0" />
+      <point x="692.9285714285714" y="80.0" />
+      <point x="23.428571428571445" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.replication.ShardReplicationOperationRequest" target="org.elasticsearch.action.ActionRequest">
+      <point x="0.0" y="-15.0" />
+      <point x="32.75" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.replication.TransportShardReplicationOperationAction" target="org.elasticsearch.action.support.TransportAction">
+      <point x="-99.33333333333331" y="-15.0" />
+      <point x="1290.1666666666667" y="155.0" />
+      <point x="1196.0777116402116" y="155.0" />
+      <point x="35.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.rest.RestController" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.client.Client" target="org.elasticsearch.client.ElasticsearchClient">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.indices.IndicesService" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="283.0" y="70.0" />
+      <point x="622.6428571428571" y="70.0" />
+      <point x="-46.85714285714289" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.replication.TransportShardReplicationOperationAction" target="org.elasticsearch.action.ActionResponse">
+      <point x="0.0" y="-15.0" />
+      <point x="1389.5" y="155.0" />
+      <point x="1346.7599206349207" y="155.0" />
+      <point x="1346.7599206349207" y="70.0" />
+      <point x="1268.0833333333335" y="70.0" />
+      <point x="46.99999999999997" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.master.TransportMasterNodeOperationAction" target="org.elasticsearch.action.support.TransportAction">
+      <point x="68.5" y="-15.0" />
+      <point x="1152.0" y="155.0" />
+      <point x="1125.5777116402116" y="155.0" />
+      <point x="-35.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.index.shard.IndexShard" target="org.elasticsearch.index.shard.AbstractIndexShardComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.client.support.AbstractClient" target="org.elasticsearch.client.Client">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.index.TransportIndexAction" target="org.elasticsearch.action.support.replication.TransportShardReplicationOperationAction">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.TransportAction" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="-47.0" y="-15.0" />
+      <point x="1113.8277116402116" y="50.0" />
+      <point x="739.7857142857142" y="50.0" />
+      <point x="70.28571428571422" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.http.HttpServer" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="998.3792989417989" y="70.0" />
+      <point x="716.3571428571429" y="70.0" />
+      <point x="46.85714285714289" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.http.netty.HttpRequestHandler" target="org.jboss.netty.channel.SimpleChannelUpstreamHandler">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.master.TransportMasterNodeOperationAction" target="org.elasticsearch.action.ActionResponse">
+      <point x="-68.5" y="-15.0" />
+      <point x="1015.0" y="155.0" />
+      <point x="1063.8792989417989" y="155.0" />
+      <point x="1063.8792989417989" y="60.0" />
+      <point x="1174.0833333333335" y="60.0" />
+      <point x="-47.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction" target="org.elasticsearch.action.support.master.TransportMasterNodeOperationAction">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.client.node.NodeClient" target="org.elasticsearch.client.support.AbstractClient">
+      <point x="0.0" y="-15.0" />
+      <point x="56.5" y="550.0" />
+      <point x="89.75" y="550.0" />
+      <point x="-32.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.TransportAction" target="org.elasticsearch.action.ActionResponse">
+      <point x="0.0" y="-15.0" />
+      <point x="1160.8277116402116" y="70.0" />
+      <point x="1221.0833333333335" y="70.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.TransportAction" target="org.elasticsearch.action.ActionRequest">
+      <point x="47.0" y="-15.0" />
+      <point x="1207.8277116402116" y="80.0" />
+      <point x="1420.3849206349207" y="80.0" />
+      <point x="-32.75" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.replication.TransportShardReplicationOperationAction" target="org.elasticsearch.action.support.replication.ShardReplicationOperationRequest">
+      <point x="99.33333333333331" y="-15.0" />
+      <point x="1488.8333333333333" y="155.0" />
+      <point x="1485.8849206349207" y="155.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.rest.action.index.RestIndexAction" target="org.elasticsearch.rest.BaseRestHandler">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.client.FilterClient" target="org.elasticsearch.client.support.AbstractClient">
+      <point x="0.0" y="-15.0" />
+      <point x="187.0" y="550.0" />
+      <point x="153.75" y="550.0" />
+      <point x="32.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.index.engine.InternalEngine" target="org.elasticsearch.index.engine.Engine">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.http.netty.NettyHttpServerTransport" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="99.0" y="60.0" />
+      <point x="599.2142857142858" y="60.0" />
+      <point x="-70.28571428571422" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.cluster.metadata.MetaDataCreateIndexService" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="476.0" y="80.0" />
+      <point x="646.0714285714286" y="80.0" />
+      <point x="-23.428571428571445" y="15.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Group" zoom="1.0" x="814.5" y="204.5" />
+  <SelectedNodes />
+  <Categories />
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+
