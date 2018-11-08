@@ -1,0 +1,71 @@
+@startuml
+' TransportAction
+
+actor User #blue
+
+User -> HttpRequestHandler: messageReceived() 接受用户请求message
+
+HttpRequestHandler -> NettyHttpServerTransport: dispatchRequest() 分发请求
+
+NettyHttpServerTransport -> RestIndexAction: dispatchRequest() -> handleRequest() \n解析rest请求参数
+
+RestIndexAction -> TransportAction: index()-> execute() 索引流程入口
+
+TransportAction -> TransportIndexAction: doExecute() 开始索引流程
+
+TransportIndexAction -> TransportMasterNodeOperationAction: doExecute() 在master节点上创建索引入口
+
+TransportMasterNodeOperationAction -> TransportMasterNodeOperationAction: innerExecute() 确保创建索引操作在master节点执行
+
+TransportMasterNodeOperationAction -> TransportCreateIndexAction: masterOperation() master节点创建索引
+
+TransportCreateIndexAction -> MetaDataCreateIndexService: createIndex() 如果可以获取锁, 直接执行; 否则交给线程池执行
+
+MetaDataCreateIndexService -> MetaDataCreateIndexService: createIndex() 提交创建索引Task, 执行task的execute()方法
+
+MetaDataCreateIndexService -> IndicesService: createIndex() 完成模块注入, 将新创建的索引写入内部对象indices中
+
+IndicesService --> TransportIndexAction: 完成索引创建
+
+TransportIndexAction -> TransportIndexAction: innerExecute() 开始写入文档数据
+
+TransportIndexAction -> TransportShardReplicationOperationAction: doExecute 首先在Primary Shard上写数据
+
+TransportShardReplicationOperationAction -> TransportShardReplicationOperationAction: \nPrimaryPhase.doRun() \n找到Primary Shard并判断可用性
+
+TransportShardReplicationOperationAction -> TransportShardReplicationOperationAction: \nPrimaryPhase.routeRequestOrPerformLocally() \n将请求发送到Primary Shard执行
+
+TransportShardReplicationOperationAction -> TransportShardReplicationOperationAction: \nPrimaryPhase.performOnPrimary() \n在Primary Shard上构建请求
+
+TransportShardReplicationOperationAction -> TransportIndexAction: shardOperationOnPrimary() 解析source并构建Index请求参数
+
+TransportIndexAction -> IndexShard: index() 重写构建Engine.Index并记录耗时
+
+IndexShard -> InternalEngine: index() 判断是否Recovery
+
+InternalEngine -> InternalEngine: innerIndex() 调用lucene的index writer \n写primary shard索引
+
+InternalEngine --> TransportShardReplicationOperationAction: 完成主分片上数据创建
+
+TransportShardReplicationOperationAction -> TransportShardReplicationOperationAction: \nPrimaryPhase.finishAndMoveToReplication() \n开始写副本数据
+
+TransportShardReplicationOperationAction -> TransportShardReplicationOperationAction: \nReplicationPhase.doRun() \n查找副本所在的分片
+
+TransportShardReplicationOperationAction -> TransportShardReplicationOperationAction: \nReplicationPhase.performOnReplica() \n将请求发送到对应的节点上
+
+TransportShardReplicationOperationAction -> TransportIndexAction: shardOperationOnReplica() 解析source并构建Index请求参数
+
+TransportIndexAction -> IndexShard: index() 重写构建Engine.Index并记录耗时
+
+IndexShard -> InternalEngine: index() 判断是否Recovery
+
+InternalEngine -> InternalEngine: innerIndex() 调用lucene的index writer \n 写primary shard索引
+
+InternalEngine --> TransportShardReplicationOperationAction: 完成副本数据创建
+
+TransportShardReplicationOperationAction --> User: 最终响应数据返回给调用者
+
+
+@enduml
+
+
