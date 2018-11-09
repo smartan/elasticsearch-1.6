@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>org.elasticsearch.action.search.type.TransportSearchQueryThenFetchAction</OriginalElement>
+  <nodes>
+    <node x="1083.875" y="110.0">org.elasticsearch.rest.BaseRestHandler</node>
+    <node x="137.0" y="435.0">org.elasticsearch.search.fetch.FetchPhase</node>
+    <node x="1083.375" y="190.0">org.elasticsearch.rest.action.search.RestSearchAction</node>
+    <node x="615.0" y="435.0">org.elasticsearch.http.netty.HttpRequestHandler</node>
+    <node x="425.375" y="190.0">org.elasticsearch.action.search.TransportSearchAction</node>
+    <node x="1748.875" y="110.0">org.elasticsearch.http.netty.NettyHttpServerTransport</node>
+    <node x="1600.875" y="110.0">org.elasticsearch.search.SearchService</node>
+    <node x="551.875" y="110.0">org.elasticsearch.action.support.TransportAction</node>
+    <node x="0.0" y="435.0">org.elasticsearch.search.query.QueryPhase</node>
+    <node x="422.0" y="435.0">org.elasticsearch.client.node.NodeClient</node>
+    <node x="294.0" y="435.0">org.elasticsearch.client.FilterClient</node>
+    <node x="522.0" y="280.0">org.elasticsearch.action.search.type.TransportSearchQueryThenFetchAction</node>
+    <node x="1434.0" y="280.0">org.elasticsearch.action.search.type.TransportSearchScanAction</node>
+    <node x="611.375" y="0.0">org.elasticsearch.action.ActionRequest</node>
+    <node x="1154.875" y="0.0">org.elasticsearch.common.component.AbstractComponent</node>
+    <node x="450.375" y="0.0">org.elasticsearch.action.ActionResponse</node>
+    <node x="1401.875" y="110.0">org.elasticsearch.search.controller.SearchPhaseController</node>
+    <node x="580.0" y="355.0">org.jboss.netty.channel.SimpleChannelUpstreamHandler</node>
+    <node x="953.875" y="110.0">org.elasticsearch.http.HttpServer</node>
+    <node x="704.5" y="190.0">org.elasticsearch.action.search.type.TransportSearchTypeAction</node>
+    <node x="815.0" y="280.0">org.elasticsearch.action.search.type.TransportSearchDfsQueryAndFetchAction</node>
+    <node x="1250.875" y="110.0">org.elasticsearch.rest.RestController</node>
+    <node x="349.25" y="355.0">org.elasticsearch.client.support.AbstractClient</node>
+    <node x="234.0" y="280.0">org.elasticsearch.action.search.type.TransportSearchQueryAndFetchAction</node>
+    <node x="1122.0" y="280.0">org.elasticsearch.action.search.type.TransportSearchDfsQueryThenFetchAction</node>
+    <node x="65.25" y="355.0">org.elasticsearch.search.SearchPhase</node>
+    <node x="712.875" y="110.0">org.elasticsearch.search.action.SearchServiceTransportAction</node>
+    <node x="0.0" y="280.0">org.elasticsearch.action.search.type.TransportSearchCountAction</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="org.elasticsearch.rest.BaseRestHandler" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="1157.375" y="90.0" />
+      <point x="1226.625" y="90.0" />
+      <point x="-10.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.rest.RestController" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="1316.375" y="90.0" />
+      <point x="1247.125" y="90.0" />
+      <point x="10.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.search.type.TransportSearchQueryThenFetchAction" target="org.elasticsearch.action.search.type.TransportSearchTypeAction">
+      <point x="0.0" y="-15.0" />
+      <point x="658.5" y="260.0" />
+      <point x="791.1666666666665" y="260.0" />
+      <point x="-17.33333333333337" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.search.type.TransportSearchQueryAndFetchAction" target="org.elasticsearch.action.search.type.TransportSearchTypeAction">
+      <point x="0.0" y="-15.0" />
+      <point x="368.0" y="250.0" />
+      <point x="756.5" y="250.0" />
+      <point x="-52.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.TransportAction" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="47.0" y="-15.0" />
+      <point x="669.375" y="60.0" />
+      <point x="1165.125" y="60.0" />
+      <point x="-71.75" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.search.TransportSearchAction" target="org.elasticsearch.action.support.TransportAction">
+      <point x="0.0" y="-15.0" />
+      <point x="515.375" y="165.0" />
+      <point x="587.125" y="165.0" />
+      <point x="-35.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.http.HttpServer" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="1008.875" y="80.0" />
+      <point x="1206.125" y="80.0" />
+      <point x="-30.75" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.search.type.TransportSearchDfsQueryThenFetchAction" target="org.elasticsearch.action.search.type.TransportSearchTypeAction">
+      <point x="0.0" y="-15.0" />
+      <point x="1268.0" y="250.0" />
+      <point x="860.5" y="250.0" />
+      <point x="52.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.http.netty.HttpRequestHandler" target="org.jboss.netty.channel.SimpleChannelUpstreamHandler">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.search.type.TransportSearchDfsQueryAndFetchAction" target="org.elasticsearch.action.search.type.TransportSearchTypeAction">
+      <point x="0.0" y="-15.0" />
+      <point x="958.5" y="260.0" />
+      <point x="825.8333333333333" y="260.0" />
+      <point x="17.33333333333337" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.search.controller.SearchPhaseController" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="1491.375" y="80.0" />
+      <point x="1267.625" y="80.0" />
+      <point x="30.75" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.client.node.NodeClient" target="org.elasticsearch.client.support.AbstractClient">
+      <point x="0.0" y="-15.0" />
+      <point x="478.5" y="410.0" />
+      <point x="445.25" y="410.0" />
+      <point x="32.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.TransportAction" target="org.elasticsearch.action.ActionResponse">
+      <point x="-47.0" y="-15.0" />
+      <point x="575.375" y="90.0" />
+      <point x="520.875" y="90.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.search.SearchService" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="1664.875" y="70.0" />
+      <point x="1288.125" y="70.0" />
+      <point x="51.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.support.TransportAction" target="org.elasticsearch.action.ActionRequest">
+      <point x="0.0" y="-15.0" />
+      <point x="622.375" y="50.0" />
+      <point x="676.875" y="50.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.rest.action.search.RestSearchAction" target="org.elasticsearch.rest.BaseRestHandler">
+      <point x="0.0" y="-15.0" />
+      <point x="0.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.search.type.TransportSearchScanAction" target="org.elasticsearch.action.search.type.TransportSearchTypeAction">
+      <point x="0.0" y="-15.0" />
+      <point x="1537.5" y="240.0" />
+      <point x="895.1666666666665" y="240.0" />
+      <point x="86.66666666666663" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.search.type.TransportSearchCountAction" target="org.elasticsearch.action.search.type.TransportSearchTypeAction">
+      <point x="0.0" y="-15.0" />
+      <point x="107.0" y="240.0" />
+      <point x="721.8333333333333" y="240.0" />
+      <point x="-86.66666666666663" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.search.action.SearchServiceTransportAction" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="823.375" y="70.0" />
+      <point x="1185.625" y="70.0" />
+      <point x="-51.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.client.FilterClient" target="org.elasticsearch.client.support.AbstractClient">
+      <point x="0.0" y="-15.0" />
+      <point x="348.0" y="410.0" />
+      <point x="381.25" y="410.0" />
+      <point x="-32.0" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.search.fetch.FetchPhase" target="org.elasticsearch.search.SearchPhase">
+      <point x="0.0" y="-15.0" />
+      <point x="193.0" y="410.0" />
+      <point x="156.0" y="410.0" />
+      <point x="30.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.search.query.QueryPhase" target="org.elasticsearch.search.SearchPhase">
+      <point x="0.0" y="-15.0" />
+      <point x="58.5" y="410.0" />
+      <point x="95.5" y="410.0" />
+      <point x="-30.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.action.search.type.TransportSearchTypeAction" target="org.elasticsearch.action.support.TransportAction">
+      <point x="0.0" y="-15.0" />
+      <point x="808.5" y="165.0" />
+      <point x="657.625" y="165.0" />
+      <point x="35.25" y="15.0" />
+    </edge>
+    <edge source="org.elasticsearch.http.netty.NettyHttpServerTransport" target="org.elasticsearch.common.component.AbstractComponent">
+      <point x="0.0" y="-15.0" />
+      <point x="1847.875" y="60.0" />
+      <point x="1308.625" y="60.0" />
+      <point x="71.75" y="15.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Group" zoom="1.137323177366703" x="889.8887572315128" y="225.74350003134296" />
+  <SelectedNodes />
+  <Categories />
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+

@@ -87,9 +87,11 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadOperati
     protected void masterOperation(final ClusterHealthRequest request, final ClusterState unusedState, final ActionListener<ClusterHealthResponse> listener) throws ElasticsearchException {
         if (request.waitForEvents() != null) {
             final long endTimeMS = TimeValue.nsecToMSec(System.nanoTime()) + request.timeout().millis();
+            // 提交一个更新集群的task, 执行task的execute()方法
             clusterService.submitStateUpdateTask("cluster_health (wait_for_events [" + request.waitForEvents() + "])", request.waitForEvents(), new ProcessedClusterStateUpdateTask() {
                 @Override
                 public ClusterState execute(ClusterState currentState) {
+                    // 什么都不做,
                     return currentState;
                 }
 
@@ -133,6 +135,7 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadOperati
      * @param listener  ActionListener
      */
     private void executeHealth(final ClusterHealthRequest request, final ActionListener<ClusterHealthResponse> listener) {
+
         int waitFor = 5;
         if (request.waitForStatus() == null) {
             waitFor--;
@@ -152,6 +155,7 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadOperati
 
         assert waitFor >= 0;
         final ClusterStateObserver observer = new ClusterStateObserver(clusterService, logger);
+        // 构造的ClusterState.state()
         final ClusterState state = observer.observedState();
         if (waitFor == 0 || request.timeout().millis() == 0) {
             listener.onResponse(getResponse(request, state, waitFor, request.timeout().millis() == 0));
@@ -195,7 +199,16 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadOperati
         return prepareResponse(request, response, clusterState, waitFor);
     }
 
+    /**
+     * 获取集群健康状态响应
+     * @param request   ClusterHealthRequest
+     * @param clusterState  ClusterState
+     * @param waitFor   int
+     * @param timedOut  boolean
+     * @return  ClusterHealthResponse
+     */
     private ClusterHealthResponse getResponse(final ClusterHealthRequest request, ClusterState clusterState, final int waitFor, boolean timedOut) {
+        //
         ClusterHealthResponse response = clusterHealth(request, clusterState, clusterService.numberOfPendingTasks(), gatewayAllocator.getNumberOfInFlightFetch());
         boolean valid = prepareResponse(request, response, clusterState, waitFor);
         assert valid || timedOut;
@@ -208,6 +221,14 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadOperati
         return response;
     }
 
+    /**
+     * 准备响应
+     * @param request   ClusterHealthRequest
+     * @param response  ClusterHealthResponse
+     * @param clusterState  ClusterState
+     * @param waitFor   int
+     * @return  boolean
+     */
     private boolean prepareResponse(final ClusterHealthRequest request, final ClusterHealthResponse response, ClusterState clusterState, final int waitFor) {
         int waitForCounter = 0;
         if (request.waitForStatus() != null && response.getStatus().value() <= request.waitForStatus().value()) {

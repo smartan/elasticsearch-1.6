@@ -34,7 +34,7 @@ import java.util.Locale;
 import static org.elasticsearch.client.Requests.clusterHealthRequest;
 
 /**
- *
+ * cluster health action 入口
  */
 public class RestClusterHealthAction extends BaseRestHandler {
 
@@ -43,6 +43,7 @@ public class RestClusterHealthAction extends BaseRestHandler {
         super(settings, controller, client);
 
         controller.registerHandler(RestRequest.Method.GET, "/_cluster/health", this);
+        // 查看索引的健康状态
         controller.registerHandler(RestRequest.Method.GET, "/_cluster/health/{index}", this);
     }
 
