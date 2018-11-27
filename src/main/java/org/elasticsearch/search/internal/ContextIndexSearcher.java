@@ -64,6 +64,7 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
     private DocIdSetCollector mainDocIdSetCollector;
 
     public ContextIndexSearcher(SearchContext searchContext, Engine.Searcher searcher) {
+        // 调用父类IndexSearcher的构造方法构造searcher
         super(searcher.reader());
         in = searcher.searcher();
         this.searchContext = searchContext;

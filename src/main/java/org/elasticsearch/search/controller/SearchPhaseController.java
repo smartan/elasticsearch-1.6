@@ -276,6 +276,13 @@ public class SearchPhaseController extends AbstractComponent {
         return mergedTopDocs.scoreDocs;
     }
 
+    /**
+     * 仅针对 scroll 请求
+     * @param request   SearchRequest
+     * @param sortedShardList   ScoreDoc
+     * @param numShards int
+     * @return  ScoreDoc
+     */
     public ScoreDoc[] getLastEmittedDocPerShard(SearchRequest request, ScoreDoc[] sortedShardList, int numShards) {
         if (request.scroll() != null) {
             return getLastEmittedDocPerShard(sortedShardList, numShards);
@@ -284,6 +291,12 @@ public class SearchPhaseController extends AbstractComponent {
         }
     }
 
+    /**
+     * 获取每个shard index 最后一个doc
+     * @param sortedShardList   ScoreDoc
+     * @param numShards int
+     * @return  ScoreDoc
+     */
     public ScoreDoc[] getLastEmittedDocPerShard(ScoreDoc[] sortedShardList, int numShards) {
         ScoreDoc[] lastEmittedDocPerShard = new ScoreDoc[numShards];
         for (ScoreDoc scoreDoc : sortedShardList) {
@@ -293,6 +306,7 @@ public class SearchPhaseController extends AbstractComponent {
     }
 
     /**
+     * 获取 Fetch 阶段的doc id
      * Builds an array, with potential null elements, with docs to load.
      */
     public void fillDocIdsToLoad(AtomicArray<IntArrayList> docsIdsToLoad, ScoreDoc[] shardDocs) {
@@ -302,6 +316,7 @@ public class SearchPhaseController extends AbstractComponent {
                 list = new IntArrayList(); // can't be shared!, uses unsafe on it later on
                 docsIdsToLoad.set(shardDoc.shardIndex, list);
             }
+            // lucene 的命中文档id
             list.add(shardDoc.doc);
         }
     }
@@ -309,8 +324,8 @@ public class SearchPhaseController extends AbstractComponent {
     /**
      * 通用合并Query和Fetch结果, 包括facets hits suggest aggregation
      * @param sortedDocs        已经排序Doc
-     * @param queryResultsArr   Query结果
-     * @param fetchResultsArr   Fetch结果
+     * @param queryResultsArr   Query 结果
+     * @param fetchResultsArr   Fetch 结果
      * @return  InternalSearchResponse
      */
     public InternalSearchResponse merge(ScoreDoc[] sortedDocs,

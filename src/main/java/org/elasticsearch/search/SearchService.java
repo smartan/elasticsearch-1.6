@@ -622,7 +622,7 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
 
         SearchShardTarget shardTarget = new SearchShardTarget(clusterService.localNode().id(), request.index(), request.shardId());
 
-        // 获取searcher
+        // 获取Engine.Searcher, 初始化lucene的searcher
         Engine.Searcher engineSearcher = searcher == null ? indexShard.acquireSearcher("search") : searcher;
 
         // 调用DefaultSearchContext构造方法创建context

@@ -454,6 +454,12 @@ public class SearchServiceTransportAction extends AbstractComponent {
         }
     }
 
+    /**
+     * 执行 Fetch
+     * @param node  DiscoveryNode
+     * @param request   ShardFetchSearchRequest
+     * @param listener  SearchServiceListener
+     */
     public void sendExecuteFetch(DiscoveryNode node, final ShardFetchSearchRequest request, final SearchServiceListener<FetchSearchResult> listener) {
         sendExecuteFetch(node, FETCH_ID_ACTION_NAME, request, listener);
     }
@@ -471,8 +477,16 @@ public class SearchServiceTransportAction extends AbstractComponent {
         sendExecuteFetch(node, action, request, listener);
     }
 
+    /**
+     * 执行 Fetch
+     * @param node  DiscoveryNode
+     * @param action    String
+     * @param request   ShardFetchRequest
+     * @param listener  SearchServiceListener
+     */
     private void sendExecuteFetch(DiscoveryNode node, String action, final ShardFetchRequest request, final SearchServiceListener<FetchSearchResult> listener) {
         if (clusterService.state().nodes().localNodeId().equals(node.id())) {
+            // 先执行callable的call()方法, 然后执行listener的onResult()或者onFailure()
             execute(new Callable<FetchSearchResult>() {
                 @Override
                 public FetchSearchResult call() throws Exception {
@@ -574,10 +588,10 @@ public class SearchServiceTransportAction extends AbstractComponent {
     }
 
     /**
-     *
-     * @param callable
-     * @param listener
-     * @param <T>
+     * 执行 callable
+     * @param callable  Callable
+     * @param listener  SearchServiceListener
+     * @param <T>   SearchResult
      */
     private <T> void execute(final Callable<? extends T> callable, final SearchServiceListener<T> listener) {
         try {

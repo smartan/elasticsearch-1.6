@@ -121,6 +121,13 @@ public abstract class Engine implements Closeable {
         return IndexWriter.SOURCE_MERGE.equals(source);
     }
 
+    /**
+     * 被Engine.acquireSearcher()调用
+     * @param source    String
+     * @param searcher  IndexSearcher
+     * @param manager   SearcherManager
+     * @return  Searcher
+     */
     protected Searcher newSearcher(String source, IndexSearcher searcher, SearcherManager manager) {
         return new EngineSearcher(source, searcher, manager, store, logger);
     }
@@ -261,6 +268,7 @@ public abstract class Engine implements Closeable {
             final SearcherManager manager = getSearcherManager(); // can never be null
             /* This might throw NPE but that's fine we will run ensureOpen()
             *  in the catch block and throw the right exception */
+            // 获取lucene的index searcher
             final IndexSearcher searcher = manager.acquire();
             try {
                 final Searcher retVal = newSearcher(source, searcher, manager);
@@ -563,6 +571,11 @@ public abstract class Engine implements Closeable {
         private final String source;
         private final IndexSearcher searcher;
 
+        /**
+         * final IndexSearcher searcher = manager.acquire(); 进行初始化searcher
+         * @param source    String
+         * @param searcher  IndexSearcher
+         */
         public Searcher(String source, IndexSearcher searcher) {
             this.source = source;
             this.searcher = searcher;

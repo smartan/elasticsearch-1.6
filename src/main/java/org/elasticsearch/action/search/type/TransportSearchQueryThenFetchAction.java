@@ -105,39 +105,62 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
 
 
         /**
-         * QUERY_THEN_FETCH第二阶段FETCH和MERGE过程
-         * @throws Exception
+         * QUERY_THEN_FETCH 第二阶段 FETCH 和 MERGE 过程
+         * @throws Exception Exception
          */
         @Override
         protected void moveToSecondPhase() throws Exception {
             boolean useScroll = !useSlowScroll && request.scroll() != null;
+            // 对第一阶段每个shard的Query结果进行排序, 获取merge后的top docs
             sortedShardList = searchPhaseController.sortDocs(useScroll, firstResults);
+
+            // 填充要fetch的doc id
             searchPhaseController.fillDocIdsToLoad(docIdsToLoad, sortedShardList);
 
-            if (docIdsToLoad.asList().isEmpty()) { //Query结果为空
+            // 判断query结果是否为空
+            if (docIdsToLoad.asList().isEmpty()) {
+                //Query结果为空, 直接合并query和fetch, 返回响应结果
                 finishHim();
                 return;
             }
 
+            // 获取每个shard index最后一个doc
             final ScoreDoc[] lastEmittedDocPerShard = searchPhaseController.getLastEmittedDocPerShard(
                     request, sortedShardList, firstResults.length()
             );
             final AtomicInteger counter = new AtomicInteger(docIdsToLoad.asList().size());
+
+            // 遍历每个shard, 去对应的各个节点上获取文档数据
             for (AtomicArray.Entry<IntArrayList> entry : docIdsToLoad.asList()) {
+                // query 结果
                 QuerySearchResultProvider queryResult = firstResults.get(entry.index);
+                // 对应的节点
                 DiscoveryNode node = nodes.get(queryResult.shardTarget().nodeId());
+                // 创建fetch请求
                 ShardFetchSearchRequest fetchSearchRequest = createFetchRequest(queryResult.queryResult(), entry, lastEmittedDocPerShard);
+                // 执行fetch
                 executeFetch(entry.index, queryResult.shardTarget(), counter, fetchSearchRequest, node);
             }
         }
 
+        /**
+         * 执行 QUERY_THEN_FETCH 的 fetch 阶段
+         * @param shardIndex    int
+         * @param shardTarget   SearchShardTarget
+         * @param counter   AtomicInteger
+         * @param fetchSearchRequest    ShardFetchSearchRequest
+         * @param node  DiscoveryNode
+         */
         void executeFetch(final int shardIndex, final SearchShardTarget shardTarget, final AtomicInteger counter, final ShardFetchSearchRequest fetchSearchRequest, DiscoveryNode node) {
+            // 发起fetch请求
             searchService.sendExecuteFetch(node, fetchSearchRequest, new SearchServiceListener<FetchSearchResult>() {
                 @Override
                 public void onResult(FetchSearchResult result) {
                     result.shardTarget(shardTarget);
+                    // set fetch 结果
                     fetchResults.set(shardIndex, result);
                     if (counter.decrementAndGet() == 0) {
+                        // 获取 fetch 结果后执行 merge 并返回响应
                         finishHim();
                     }
                 }

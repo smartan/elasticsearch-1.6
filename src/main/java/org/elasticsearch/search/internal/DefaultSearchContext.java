@@ -167,6 +167,7 @@ public class DefaultSearchContext extends SearchContext {
         this.indexShard = indexShard;
         this.indexService = indexService;
 
+        // 创建ContextIndexSearcher
         this.searcher = new ContextIndexSearcher(this, engineSearcher);
 
         // initialize the filtering alias based on the provided filters
