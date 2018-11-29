@@ -147,7 +147,7 @@ public abstract class TransportSearchTypeAction extends TransportAction<SearchRe
 
             // 判断是否使用scroll
             boolean useSlowScroll = false;
-            if (request.scroll() != null) {
+             if (request.scroll() != null) {
                 for (DiscoveryNode discoveryNode : clusterState.nodes()) {
                     if (discoveryNode.getVersion().before(ParsedScrollId.SCROLL_SEARCH_AFTER_MINIMUM_VERSION)) {
                         useSlowScroll = true;

@@ -334,12 +334,12 @@ public class SearchPhaseController extends AbstractComponent {
 
         List<? extends AtomicArray.Entry<? extends QuerySearchResultProvider>> queryResults = queryResultsArr.asList();
         List<? extends AtomicArray.Entry<? extends FetchSearchResultProvider>> fetchResults = fetchResultsArr.asList();
-
+        // 分片结果数量
         if (queryResults.isEmpty()) {
             return InternalSearchResponse.empty();
         }
 
-        // 第一阶段Query第一个shard的Query结果
+        // 第一阶段Query结果的第一个shard的Query结果
         QuerySearchResult firstResult = queryResults.get(0).value.queryResult();
 
         boolean sorted = false;
@@ -416,13 +416,13 @@ public class SearchPhaseController extends AbstractComponent {
             entry.value.fetchResult().initCounter();
         }
 
-        // 合并Query和Fetch结果集
+        // 按照sortedDocs的顺序, 填充对应Fetch的结果集, 按sortedDocs的shardIndex查找Fetch
         // merge hits
         List<InternalSearchHit> hits = new ArrayList<>();
-        if (!fetchResults.isEmpty()) {
+        if (!fetchResults.isEmpty()) { // 如果fetch结果不为空
             // 遍历每一个已经排序的Doc
             for (ScoreDoc shardDoc : sortedDocs) {
-                // 获取对应shard的fetch结果
+                // 取fetch result对应sortedDocs的下标的结果, 即值不为空的结果
                 FetchSearchResultProvider fetchResultProvider = fetchResultsArr.get(shardDoc.shardIndex);
                 if (fetchResultProvider == null) {
                     continue;
@@ -441,7 +441,7 @@ public class SearchPhaseController extends AbstractComponent {
 
                     if (sorted) {
                         FieldDoc fieldDoc = (FieldDoc) shardDoc;
-                        // 设置排序字段
+                        // 按照排序字段进行排序
                         searchHit.sortValues(fieldDoc.fields);
                         if (sortScoreIndex != -1) {
                             // 设置score
@@ -459,8 +459,8 @@ public class SearchPhaseController extends AbstractComponent {
         if (!queryResults.isEmpty()) {
             final Map<String, List<Suggest.Suggestion>> groupedSuggestions = new HashMap<>();
             boolean hasSuggestions = false;
-            for (AtomicArray.Entry<? extends QuerySearchResultProvider> entry : queryResults) {
-                Suggest shardResult = entry.value.queryResult().queryResult().suggest();
+            for (AtomicArray.Entry<? extends QuerySearchResultProvider> entry : queryResults) { // 遍历分片的结果
+                Suggest shardResult = entry.value.queryResult().queryResult().suggest(); // 获取 query 结果中的 suggest
 
                 if (shardResult == null) {
                     continue;

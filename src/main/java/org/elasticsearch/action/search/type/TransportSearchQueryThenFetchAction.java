@@ -189,19 +189,22 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
             }
         }
 
+        /**
+         * merge 结果并返回响应
+         */
         private void finishHim() {
             threadPool.executor(ThreadPool.Names.SEARCH).execute(new ActionRunnable<SearchResponse>(listener) {
                 @Override
                 public void doRun() throws IOException {
                     // 对结果进行merge, 对每一个一阶段结果, 填充fetch到的数据
-                    final InternalSearchResponse internalResponse = searchPhaseController.merge(sortedShardList, firstResults, fetchResults);
+                    final InternalSearchResponse internalResponse = searchPhaseController.merge(sortedShardList, firstResults, fetchResults); // firstResults 数组包含每个分片的结果, 数组大小为分片数量
                     String scrollId = null;
                     if (request.scroll() != null) {
                         scrollId = TransportSearchHelper.buildScrollId(request.searchType(), firstResults, null);
                     }
-                    // 封装搜索响应,并对hits进行解压
+                    // RestActionListener -> RestResponseListener -> RestStatusToXContentListener -> SearchResponse -> InternalSearchResponse -> InternalSearchHits封装搜索响应,并对hits进行解压
                     listener.onResponse(new SearchResponse(internalResponse, scrollId, expectedSuccessfulOps, successfulOps.get(), buildTookInMillis(), buildShardFailures()));
-                    releaseIrrelevantSearchContexts(firstResults, docIdsToLoad);
+                    releaseIrrelevantSearchContexts(firstResults, docIdsToLoad); // 释放 search context
                 }
 
                 @Override
