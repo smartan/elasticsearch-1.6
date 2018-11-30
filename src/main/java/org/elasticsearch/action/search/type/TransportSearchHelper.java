@@ -76,6 +76,14 @@ public abstract class TransportSearchHelper {
         }
     }
 
+    /**
+     * 生成QUERY_THEN_FETCH 的逻辑
+     * @param type  String
+     * @param searchPhaseResults    AtomicArray
+     * @param attributes    Map
+     * @return  String
+     * @throws IOException  IOException
+     */
     public static String buildScrollId(String type, AtomicArray<? extends SearchPhaseResult> searchPhaseResults, @Nullable Map<String, String> attributes) throws IOException {
         StringBuilder sb = new StringBuilder().append(type).append(';');
         sb.append(searchPhaseResults.asList().size()).append(';');

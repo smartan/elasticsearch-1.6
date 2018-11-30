@@ -111,7 +111,8 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
         @Override
         protected void moveToSecondPhase() throws Exception {
             boolean useScroll = !useSlowScroll && request.scroll() != null;
-            // 对第一阶段每个shard的Query结果进行排序, 获取merge后的top docs
+
+            // 对第一阶段每个shard的Query结果进行排序, 获取merge后的top docs, 从而得到要fetch的doc id, 这个结果也是query 的最终排序
             sortedShardList = searchPhaseController.sortDocs(useScroll, firstResults);
 
             // 填充要fetch的doc id
@@ -199,12 +200,17 @@ public class TransportSearchQueryThenFetchAction extends TransportSearchTypeActi
                     // 对结果进行merge, 对每一个一阶段结果, 填充fetch到的数据
                     final InternalSearchResponse internalResponse = searchPhaseController.merge(sortedShardList, firstResults, fetchResults); // firstResults 数组包含每个分片的结果, 数组大小为分片数量
                     String scrollId = null;
+
+                    // 如果请求中有scroll, 则需要重新生成一个scroll
                     if (request.scroll() != null) {
                         scrollId = TransportSearchHelper.buildScrollId(request.searchType(), firstResults, null);
                     }
+
                     // RestActionListener -> RestResponseListener -> RestStatusToXContentListener -> SearchResponse -> InternalSearchResponse -> InternalSearchHits封装搜索响应,并对hits进行解压
                     listener.onResponse(new SearchResponse(internalResponse, scrollId, expectedSuccessfulOps, successfulOps.get(), buildTookInMillis(), buildShardFailures()));
-                    releaseIrrelevantSearchContexts(firstResults, docIdsToLoad); // 释放 search context
+
+                    // 释放 search context
+                    releaseIrrelevantSearchContexts(firstResults, docIdsToLoad);
                 }
 
                 @Override

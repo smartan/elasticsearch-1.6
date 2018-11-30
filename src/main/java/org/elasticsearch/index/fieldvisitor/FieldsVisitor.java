@@ -44,8 +44,8 @@ public abstract class FieldsVisitor extends StoredFieldVisitor {
     protected Map<String, List<Object>> fieldsValues;
 
     public void postProcess(MapperService mapperService) {
-        if (uid != null) {
-            DocumentMapper documentMapper = mapperService.documentMapper(uid.type());
+        if (uid != null) { // uid.id() 为doc id
+            DocumentMapper documentMapper = mapperService.documentMapper(uid.type());  // uid.type() 为 index type
             if (documentMapper != null) {
                 // we can derive the exact type for the mapping
                 postProcess(documentMapper);

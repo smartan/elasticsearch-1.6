@@ -490,6 +490,7 @@ public class SearchServiceTransportAction extends AbstractComponent {
             execute(new Callable<FetchSearchResult>() {
                 @Override
                 public FetchSearchResult call() throws Exception {
+                    //
                     return searchService.executeFetchPhase(request);
                 }
             }, listener);

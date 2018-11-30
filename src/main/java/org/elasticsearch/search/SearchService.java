@@ -563,6 +563,7 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
                 contextProcessedSuccessfully(context);
             }
             context.indexShard().searchService().onFetchPhase(context, System.nanoTime() - time);
+            // 返回context的FetchResult
             return context.fetchResult();
         } catch (Throwable e) {
             context.indexShard().searchService().onFailedFetchPhase(context);

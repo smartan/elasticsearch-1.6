@@ -145,7 +145,7 @@ public class SearchPhaseController extends AbstractComponent {
     }
 
     /**
-     * 对Query结果进行排序
+     * 对Query结果进行排序, 调用Lucene 的TopDocs.merge() 方法对每个shard 的结果进行排序, 得到全局的有序文档
      * @param scrollSort Whether to ignore the from and sort all hits in each shard result. Only used for scroll search
      * @param resultsArr Shard result holder    第一阶段每一个shard的Query结果
      */
@@ -218,8 +218,7 @@ public class SearchPhaseController extends AbstractComponent {
             }
         }
 
-        // 针对命中多分片的docs sort
-        // list转array
+        // 针对命中多分片的docs sort, list转array
         @SuppressWarnings("unchecked")
         AtomicArray.Entry<? extends QuerySearchResultProvider>[] sortedResults = results.toArray(new AtomicArray.Entry[results.size()]);
 
@@ -233,7 +232,8 @@ public class SearchPhaseController extends AbstractComponent {
         final Sort sort;
         if (firstResult.queryResult().topDocs() instanceof TopFieldDocs) {
             TopFieldDocs firstTopDocs = (TopFieldDocs) firstResult.queryResult().topDocs();
-            // 连续地将排序设置为给定条件: 首先检查第一个SortField, 但是如果它产生平局, 则使用第二个SortField来打破平局等. 最后, 如果在检查所有SortField之后仍然存在平局, 内部的Lucene docid用于打破它
+            // 连续地将排序设置为给定条件: 首先检查第一个SortField, 但是如果它产生平局, 则使用第二个SortField来打破平局等
+            // 最后, 如果在检查所有SortField之后仍然存在平局, 内部的Lucene docid用于打破它
             sort = new Sort(firstTopDocs.fields);
         } else {
             sort = null;
@@ -251,7 +251,7 @@ public class SearchPhaseController extends AbstractComponent {
             // if we did both query and fetch on the same go, we have fetched all the docs from each shards already, use them...
             // this is also important since we shortcut and fetch only docs from "from" and up to "size"
             // 如果我们同时进行query和fetch, 我们已经从每个shard中获取了所有文档, 使用它们...
-            // 这也很重要, 因为我们快捷地只fetch从"from"到"size"获取文档
+            // 这也很重要, 因为我们快捷地只fetch从"from"到"size"
             topN *= sortedResults.length; // topN = topN * shard.size
         }
         for (AtomicArray.Entry<? extends QuerySearchResultProvider> sortedResult : sortedResults) {
@@ -271,7 +271,7 @@ public class SearchPhaseController extends AbstractComponent {
                 shardTopDocs[i] = Lucene.EMPTY_TOP_DOCS;
             }
         }
-        // 用 排序字段, 起始位置, topN和每个分片的Docs对数据进行merge, 调用lucene的TopDocs.merge()方法
+        // 用 (排序字段, 起始位置, topN和每个分片的Docs) 对数据进行merge, 调用lucene的TopDocs.merge()方法
         TopDocs mergedTopDocs = TopDocs.merge(sort, from, topN, shardTopDocs);
         return mergedTopDocs.scoreDocs;
     }
@@ -324,7 +324,7 @@ public class SearchPhaseController extends AbstractComponent {
     /**
      * 通用合并Query和Fetch结果, 包括facets hits suggest aggregation
      * @param sortedDocs        已经排序Doc
-     * @param queryResultsArr   Query 结果
+     * @param queryResultsArr   Query 结果, 仅用来获取sort facet 和aggregation 信息
      * @param fetchResultsArr   Fetch 结果
      * @return  InternalSearchResponse
      */

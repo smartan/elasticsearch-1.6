@@ -119,10 +119,10 @@ public class FetchPhase implements SearchPhase {
                 fieldsVisitor = new UidAndSourceFieldsVisitor();
             } else {
                 // no fields specified, default to return source if no explicit indication
-                if (!context.hasScriptFields() && !context.hasFetchSourceContext()) {
+                if (!context.hasScriptFields() && !context.hasFetchSourceContext()) { // default
                     context.fetchSourceContext(new FetchSourceContext(true));
                 }
-                // 初始化fieldsVisitor
+                // 初始化fieldsVisitor, 默认 UidAndSourceFieldsVisitor
                 // fetchSourceContext != null && fetchSourceContext.fetchSource()
                 fieldsVisitor = context.sourceRequested() ? new UidAndSourceFieldsVisitor() : new JustUidFieldsVisitor();
             }
@@ -214,7 +214,7 @@ public class FetchPhase implements SearchPhase {
                     // 嵌套结构需要单独创建fieldsVisitor
                     searchHit = createNestedSearchHit(context, docId, subDocId, rootDocId, extractFieldNames, loadAllStored, fieldNames, subReaderContext);
                 } else {
-                    // 非嵌套结构
+                    // 非嵌套结构, 存储了_uid 和 _source 两个字段
                     searchHit = createSearchHit(context, fieldsVisitor, docId, subDocId, extractFieldNames, subReaderContext);
                 }
             } catch (IOException e) {
@@ -238,7 +238,7 @@ public class FetchPhase implements SearchPhase {
                 fetchSubPhase.hitsExecute(context, hits);
             }
         }
-
+        // 设置context.FetchResult()的 hits
         context.fetchResult().hits(new InternalSearchHits(hits, context.queryResult().topDocs().totalHits, context.queryResult().topDocs().getMaxScore()));
     }
 
@@ -283,9 +283,9 @@ public class FetchPhase implements SearchPhase {
                 searchFields.put(entry.getKey(), new InternalSearchHitField(entry.getKey(), entry.getValue()));
             }
         }
-
+        // fieldsVisitor.uid().type() 为 index 的 type
         DocumentMapper documentMapper = context.mapperService().documentMapper(fieldsVisitor.uid().type());
-        Text typeText;
+        Text typeText; // index type
         if (documentMapper == null) {
             typeText = new StringAndBytesText(fieldsVisitor.uid().type());
         } else {
@@ -530,7 +530,7 @@ public class FetchPhase implements SearchPhase {
     private void loadStoredFields(SearchContext searchContext, AtomicReaderContext readerContext, FieldsVisitor fieldVisitor, int docId) {
         fieldVisitor.reset();
         try {
-            readerContext.reader().document(docId, fieldVisitor);
+            readerContext.reader().document(docId, fieldVisitor); // SegmentReader.document() -> CompressingStoredFieldsReader.visitDocument()
         } catch (IOException e) {
             throw new FetchPhaseExecutionException(searchContext, "Failed to fetch doc id [" + docId + "]", e);
         }
