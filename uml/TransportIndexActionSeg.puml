@@ -1,5 +1,5 @@
 @startuml
-' TransportAction
+' TransportIndexAction
 
 actor User #blue
 

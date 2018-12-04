@@ -1,0 +1,37 @@
+@startuml
+' TransportSearchAction
+actor User #blue
+
+User -> HttpRequestHandler: 用户发起search请求
+
+HttpRequestHandler -> NettyHttpServerTransport: 接受用户请求message \n然后将请求转发
+
+NettyHttpServerTransport -> HttpServer.Dispatcher: 请求转发
+
+HttpServer.Dispatcher -> HttpServer: 请求转发
+
+HttpServer -> RestController: 判断是否为_plugin请求 \n然后将请求转发
+
+RestController -> RestController: 执行handler
+
+RestController -> BaseRestHandler: 根据请求的path _search获取对应的Action为RestSearchAction \n然后执行Action的handleRequest()方法 \n由于RestSearchAction继承BaseRestHandler, 因此执行父类的handleRequest()
+
+BaseRestHandler -> RestSearchAction: 执行BaseRestHandler子类RestSearchAction的handleRequest()方法
+
+RestSearchAction -> AbstractClient: 解析rest请求参数 \n调用AbstractClient.search() 执行搜索 \n请求Action为SearchAction.INSTANCE
+
+AbstractClient -> FilterClient: 执行FilterClient的execute()方法
+
+FilterClient -> NodeClient: 执行NodeClient的execute()方法
+
+NodeClient -> TransportAction: 获取SearchAction.INSTANCE对应的action, \n执行action父类TransportSearchAction对应的execute()方法
+
+TransportAction -> TransportSearchAction: 执行TransportSearchAction的doExecute()方法
+
+TransportSearchAction -> TransportAction: 执行各搜索子类型父类的execute()方法
+
+TransportAction -> TransportSearchQueryThenFetchAction: 执行TransportSearchTypeAction对应子类的doExecute()方法, 开始执行搜索逻辑
+
+TransportSearchQueryThenFetchAction --> User: 获得Search结果, 将响应返回给用户
+
+@enduml
