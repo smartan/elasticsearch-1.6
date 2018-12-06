@@ -1,0 +1,9 @@
+@startuml
+
+TransportSearchAction.doExecute -> TransportAction.execute: \t\t执行父类的抽象方法execute()\t
+
+TransportAction.execute -> TransportSearchQueryThenFetchAction.doExecute: \t\t执行子类重写的doExecute()方法\t\t
+
+
+
+@enduml
