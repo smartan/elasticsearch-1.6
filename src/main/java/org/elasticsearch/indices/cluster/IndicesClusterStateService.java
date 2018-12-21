@@ -182,6 +182,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
             applyNewIndices(event);
             applyMappings(event);
             applyAliases(event);
+
+            // 新建或者更新Shard
             applyNewOrUpdatedShards(event);
             applyDeletedShards(event);
             applyCleanedIndices(event);
@@ -517,6 +519,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
         indexAliasesService.addAll(newAliases);
     }
 
+    /**
+     * 应用新建或者更新Shard
+     * @param event
+     * @throws ElasticsearchException
+     */
     private void applyNewOrUpdatedShards(final ClusterChangedEvent event) throws ElasticsearchException {
         if (!indicesService.changesAllowed()) {
             return;
@@ -529,6 +536,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
             failedShards.clear();
             return;
         }
+
+        // 集群中所有的节点信息
         DiscoveryNodes nodes = event.state().nodes();
 
         for (final ShardRouting shardRouting : routingNode) {
@@ -537,7 +546,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
                 // got deleted on us, ignore
                 continue;
             }
+
+            // 从集群的meta中获取索引的meta data
             final IndexMetaData indexMetaData = event.state().metaData().index(shardRouting.index());
+
+            // 如果索引被删掉了
             if (indexMetaData == null) {
                 // the index got deleted on the metadata, we will clean it later in the apply deleted method call
                 continue;
@@ -545,8 +558,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
 
             final int shardId = shardRouting.id();
 
+            // 判断索引中是否包含这个shard
             if (!indexService.hasShard(shardId) && shardRouting.started()) {
+                // 已知失败的节点信息包含当前节点
                 if (failedShards.containsKey(shardRouting.shardId())) {
+                    // 重新发送shard failed 请求
                     if (nodes.masterNode() != null) {
                         shardStateAction.resendShardFailed(shardRouting, indexMetaData.getUUID(),
                                 "master " + nodes.masterNode() + " marked shard as started, but shard has previous failed. resending shard failure.",
@@ -555,13 +571,16 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
                     }
                 } else {
                     // the master thinks we are started, but we don't have this shard at all, mark it as failed
+                    // 将这个shard 加入到failedShards 集合中
                     sendFailShard(shardRouting, indexMetaData.getUUID(), "master [" + nodes.masterNode() + "] marked shard as started, but shard has not been created, mark shard as failed", null);
                 }
                 continue;
             }
 
+            // shard真实存在, 获取这个shard对象
             IndexShard indexShard = indexService.shard(shardId);
             if (indexShard != null) {
+                // 返回使用此分片收到的最新群集路由Entry
                 ShardRouting currentRoutingEntry = indexShard.routingEntry();
                 // if the current and global routing are initializing, but are still not the same, its a different "shard" being allocated
                 // for example: a shard that recovers from one node and now needs to recover to another node,
@@ -589,12 +608,13 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
 
                     }
                 }
+                // 删除shard 和shard routing
                 if (shardHasBeenRemoved == false && !shardRouting.equals(indexShard.routingEntry())) {
                     if (shardRouting.primary() && indexShard.routingEntry().primary() == false && shardRouting.initializing() && indexShard.allowsPrimaryPromotion() == false) {
                         logger.debug("{} reinitialize shard on primary promotion", indexShard.shardId());
                         indexService.removeShard(shardId, "promoted to primary");
                     } else {
-                        // if we happen to remove the shardRouting by id above we don't need to jump in here!
+                        // if we 8 to remove the shardRouting by id above we don't need to jump in here!
                         indexShard.routingEntry(shardRouting);
                         indexService.shardInjectorSafe(shardId).getInstance(IndexShardGatewayService.class).routingStateChanged();
                     }
@@ -645,6 +665,15 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
         }
     }
 
+    /**
+     * 执行shard 初始化
+     * @param routingTable  RoutingTable
+     * @param nodes DiscoveryNodes
+     * @param indexMetaData IndexMetaData
+     * @param indexShardRouting IndexShardRoutingTable
+     * @param shardRouting  ShardRouting
+     * @throws ElasticsearchException   Elasticsearch 异常
+     */
     private void applyInitializingShard(final RoutingTable routingTable, final DiscoveryNodes nodes, final IndexMetaData indexMetaData, final IndexShardRoutingTable indexShardRouting, final ShardRouting shardRouting) throws ElasticsearchException {
         final IndexService indexService = indicesService.indexService(shardRouting.index());
         if (indexService == null) {

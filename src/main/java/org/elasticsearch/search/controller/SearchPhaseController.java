@@ -244,7 +244,7 @@ public class SearchPhaseController extends AbstractComponent {
 
         // Need to use the length of the resultsArr array, since the slots will be based on the position in the resultsArr array
         // 每个分片的topDocs
-        // 需要使用resultsArr数组的长度，因为slots将基于resultsArr数组中的位置
+        // 需要使用resultsArr数组的长度, 因为slots将基于resultsArr数组中的位置
         TopDocs[] shardTopDocs = new TopDocs[resultsArr.length()];
         //
         if (firstResult.includeFetch()) {

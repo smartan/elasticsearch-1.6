@@ -371,7 +371,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 public ClusterState execute(ClusterState currentState) {
                     // Take into account the previous known nodes, if they happen not to be available
                     // then fault detection will remove these nodes.
-                    // 如果当前的master不是local节点，则有可能已经选举出master，不更新集群状态
+                    // 如果当前的master不是local节点, 则有可能已经选举出master, 不更新集群状态
                     if (currentState.nodes().masterNode() != null) {
                         // TODO can we tie break here? we don't have a remote master cluster state version to decide on
                         logger.trace("join thread elected local node as master, but there is already a master in place: {}", currentState.nodes().masterNode());
@@ -390,20 +390,20 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
 
                 @Override
                 public void onFailure(String source, Throwable t) {
-                    // 执行失败，重新执行innerJoinCluster()进行master选举及集群状态更新
+                    // 执行失败,重新执行innerJoinCluster()进行master选举及集群状态更新
                     logger.error("unexpected failure during [{}]", t, source);
                     joinThreadControl.markThreadAsDoneAndStartNew(currentThread);
                 }
 
                 @Override
                 public void clusterStateProcessed(String source, ClusterState oldState, ClusterState newState) {
-                    // 当前节点是master，将加入集群线程设置为done
+                    // 当前节点是master, 将加入集群线程设置为done
                     if (newState.nodes().localNodeMaster()) {
                         // we only starts nodesFD if we are master (it may be that we received a cluster state while pinging)
                         joinThreadControl.markThreadAsDone(currentThread);
                         nodesFD.updateNodesAndPing(newState); // start the nodes FD
                     } else {
-                        // 当前节点不是master，可能是在ping的过程中其他节点发布了新的集群状态，那么当前节点执行重新执行innerJoinCluster()开始重新加入集群
+                        // 当前节点不是master, 可能是在ping的过程中其他节点发布了新的集群状态, 那么当前节点执行重新执行innerJoinCluster()开始重新加入集群
                         // if we're not a master it means another node published a cluster state while we were pinging
                         // make sure we go through another pinging round and actively join it
                         joinThreadControl.markThreadAsDoneAndStartNew(currentThread);
@@ -466,7 +466,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
      */
     private boolean joinElectedMaster(DiscoveryNode masterNode) {
         try {
-            // 确保能连得上master，建立TCP连接
+            // 确保能连得上master, 建立TCP连接
             // first, make sure we can connect to the master
             transportService.connectToNode(masterNode);
         } catch (Exception e) {
@@ -1049,7 +1049,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 // We can't include the local node in pingMasters list, otherwise we may up electing ourselves without
                 // any check / verifications from other nodes in ZenDiscover#innerJoinCluster()
                 if (!localNode.equals(pingResponse.master())) { // 排除local节点
-                    // 若pingMasters的size大于1,则集群中有多个master，集群会不稳定出现脑裂
+                    // 若pingMasters的size大于1,则集群中有多个master, 集群会不稳定出现脑裂
                     pingMasters.add(pingResponse.master());
                 }
             }

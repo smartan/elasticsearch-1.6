@@ -85,6 +85,14 @@ public class ShardStateAction extends AbstractComponent {
         innerShardFailed(shardRouting, indexUUID, reason, masterNode);
     }
 
+    /**
+     * resend shard failed
+     * @param shardRouting  ShardRouting
+     * @param indexUUID String
+     * @param reason    String
+     * @param masterNode    DiscoveryNode
+     * @throws ElasticsearchException   ElasticsearchException
+     */
     public void resendShardFailed(final ShardRouting shardRouting, final String indexUUID, final String reason, final DiscoveryNode masterNode) throws ElasticsearchException {
         logger.trace("{} re-sending failed shard for {}, indexUUID [{}], reason [{}]", shardRouting.shardId(), shardRouting, indexUUID, reason);
         innerShardFailed(shardRouting, indexUUID, reason, masterNode);
