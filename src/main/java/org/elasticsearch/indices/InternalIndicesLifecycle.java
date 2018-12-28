@@ -234,6 +234,12 @@ public class InternalIndicesLifecycle extends AbstractComponent implements Indic
         }
     }
 
+    /**
+     * 监听shard 状态变化
+     * @param indexShard        IndexShard
+     * @param previousState     IndexShardState
+     * @param reason            String
+     */
     public void indexShardStateChanged(IndexShard indexShard, @Nullable IndexShardState previousState, @Nullable String reason) {
         for (Listener listener : listeners) {
             try {

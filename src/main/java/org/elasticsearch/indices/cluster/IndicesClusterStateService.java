@@ -709,6 +709,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
         // if we're in peer recovery, try to find out the source node now so in case it fails, we will not create the index shard
         DiscoveryNode sourceNode = null;
         if (isPeerRecovery(shardRouting)) {
+            // 查找peer recovery 的source node
             sourceNode = findSourceNodeForPeerRecovery(routingTable, nodes, shardRouting);
             if (sourceNode == null) {
                 logger.trace("ignoring initializing shard {} - no source node can be found.", shardRouting.shardId());
@@ -717,7 +718,9 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
         }
 
         // if there is no shard, create it
+        // 如果索引中不存在当前shard, 则需要创建一个
         if (!indexService.hasShard(shardId)) {
+            // 如果当前shard 已经被标记为失败了, 则跳过这个shard
             if (failedShards.containsKey(shardRouting.shardId())) {
                 if (nodes.masterNode() != null) {
                     shardStateAction.resendShardFailed(shardRouting, indexMetaData.getUUID(),
@@ -730,6 +733,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
                 if (logger.isDebugEnabled()) {
                     logger.debug("[{}][{}] creating shard", shardRouting.index(), shardId);
                 }
+                // 根据shardId 创建shard
                 IndexShard indexShard = indexService.createShard(shardId, shardRouting.primary());
                 indexShard.routingEntry(shardRouting);
                 indexShard.addFailedEngineListener(failedEngineHandler);
@@ -758,7 +762,9 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
                 // For primaries: requests in any case are routed to both when its relocating and that way we handle
                 //    the edge case where its mark as relocated, and we might need to roll it back...
                 // For replicas: we are recovering a backup from a primary
+                // 先获取恢复状态Relocated 或者Replica
                 RecoveryState.Type type = shardRouting.primary() ? RecoveryState.Type.RELOCATION : RecoveryState.Type.REPLICA;
+                // 恢复shard
                 recoveryTarget.startRecovery(indexShard, type, sourceNode, new PeerRecoveryListener(shardRouting, indexService, indexMetaData));
             } catch (Throwable e) {
                 indexShard.failShard("corrupted preexisting index", e);
@@ -767,6 +773,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent<Indic
         } else {
             // we are the first primary, recover from the gateway
             // if its post api allocation, the index should exists
+            // 从gateway 恢复分片
             boolean indexShouldExists = indexShardRouting.primaryAllocatedPostApi();
             IndexShardGatewayService shardGatewayService = indexService.shardInjectorSafe(shardId).getInstance(IndexShardGatewayService.class);
             shardGatewayService.recover(indexShouldExists, new IndexShardGatewayService.RecoveryListener() {

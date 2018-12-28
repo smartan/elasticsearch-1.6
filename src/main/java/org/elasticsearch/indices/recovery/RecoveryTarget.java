@@ -129,6 +129,13 @@ public class RecoveryTarget extends AbstractComponent {
         return onGoingRecoveries.cancelRecoveriesForShard(shardId, reason, shouldCancel);
     }
 
+    /**
+     * 开始恢复shard
+     * @param indexShard    IndexShard
+     * @param recoveryType  RecoveryState.Type
+     * @param sourceNode    DiscoveryNode
+     * @param listener      RecoveryListener
+     */
     public void startRecovery(final IndexShard indexShard, final RecoveryState.Type recoveryType, final DiscoveryNode sourceNode, final RecoveryListener listener) {
         try {
             indexShard.recovering("from " + sourceNode, recoveryType, sourceNode);

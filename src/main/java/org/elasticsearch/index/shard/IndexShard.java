@@ -407,6 +407,16 @@ public class IndexShard extends AbstractIndexShardComponent {
         return recovering(reason, new RecoveryState(shardId, shardRouting.primary(), type, restoreSource, localNode));
     }
 
+    /**
+     * 校验分片状态后开始恢复分片
+     * @param reason            String
+     * @param recoveryState     RecoveryState
+     * @return                  IndexShardState 旧的shard 状态
+     * @throws IndexShardStartedException       IndexShardStartedException
+     * @throws IndexShardRelocatedException     IndexShardRelocatedException
+     * @throws IndexShardRecoveringException    IndexShardRecoveringException
+     * @throws IndexShardClosedException        IndexShardClosedException
+     */
     private IndexShardState recovering(String reason, RecoveryState recoveryState) throws IndexShardStartedException,
             IndexShardRelocatedException, IndexShardRecoveringException, IndexShardClosedException {
         synchronized (mutex) {
@@ -445,6 +455,7 @@ public class IndexShard extends AbstractIndexShardComponent {
     }
 
     /**
+     * 修改分片的状态
      * Changes the state of the current shard
      *
      * @param newState the new shard state
