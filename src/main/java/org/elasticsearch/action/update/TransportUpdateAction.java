@@ -62,6 +62,7 @@ import org.elasticsearch.transport.TransportService;
 import java.util.Map;
 
 /**
+ * /{index}/{type}/{id}/_update 接口对应的action 处理类
  */
 public class TransportUpdateAction extends TransportInstanceSingleOperationAction<UpdateRequest, UpdateResponse> {
 
@@ -115,14 +116,22 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
         return true;
     }
 
+    /**
+     * 重写了父类的 TransportAction.doExecute() 方法
+     * @param request   UpdateRequest
+     * @param listener  ActionListener
+     */
     @Override
     protected void doExecute(final UpdateRequest request, final ActionListener<UpdateResponse> listener) {
         // if we don't have a master, we don't have metadata, that's fine, let it find a master using create index API
+        // 判断是否要创建索引
         if (autoCreateIndex.shouldAutoCreate(request.index(), clusterService.state())) {
             request.beforeLocalFork(); // we fork on another thread...
+            // 执行TransportCreateIndexAction 父类 TransportMasterNodeOperationAction的doExecute()方法
             createIndexAction.execute(new CreateIndexRequest(request).index(request.index()).cause("auto(update api)").masterNodeTimeout(request.timeout()), new ActionListener<CreateIndexResponse>() {
                 @Override
                 public void onResponse(CreateIndexResponse result) {
+                    // 创建完索引开始执行update操作
                     innerExecute(request, listener);
                 }
 
@@ -149,15 +158,26 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
         super.doExecute(request, listener);
     }
 
+    /**
+     * 根据集群状态和请求信息获取要操作的shards
+     * @param clusterState  ClusterState
+     * @param request   InternalRequest
+     * @return  ShardIterator
+     * @throws ElasticsearchException   Elasticsearch 异常
+     */
     @Override
     protected ShardIterator shards(ClusterState clusterState, InternalRequest request) throws ElasticsearchException {
+        // 指定了请求的shard
         if (request.request().shardId() != -1) {
             return clusterState.routingTable().index(request.concreteIndex()).shard(request.request().shardId()).primaryShardIt();
         }
+        // 根据index type id 和 routing 信息确定要操作的shard 集合
         ShardIterator shardIterator = clusterService.operationRouting()
                 .indexShards(clusterState, request.concreteIndex(), request.request().type(), request.request().id(), request.request().routing());
         ShardRouting shard;
+        // 获取shard 集合中的 primary shard
         while ((shard = shardIterator.nextOrNull()) != null) {
+            // 只返回主分片
             if (shard.primary()) {
                 return new PlainShardIterator(shardIterator.shardId(), ImmutableList.of(shard));
             }

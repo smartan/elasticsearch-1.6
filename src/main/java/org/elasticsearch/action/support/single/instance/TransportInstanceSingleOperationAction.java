@@ -118,14 +118,20 @@ public abstract class TransportInstanceSingleOperationAction<Request extends Ins
             this.listener = listener;
         }
 
+        /**
+         * 执行doExecute() 方法操作
+         */
         public void start() {
             this.observer = new ClusterStateObserver(clusterService, internalRequest.request().timeout(), logger);
             doStart();
         }
 
+
         protected boolean doStart() throws ElasticsearchException {
+            // 集群的节点信息
             nodes = observer.observedState().nodes();
             try {
+                // 检查集群状态是否正常
                 ClusterBlockException blockException = checkGlobalBlock(observer.observedState());
                 if (blockException != null) {
                     if (blockException.retryable()) {
@@ -149,6 +155,7 @@ public abstract class TransportInstanceSingleOperationAction<Request extends Ins
                         throw blockException;
                     }
                 }
+                // 获取要操作的primary shard
                 shardIt = shards(observer.observedState(), internalRequest);
             } catch (Throwable e) {
                 listener.onFailure(e);
@@ -156,17 +163,20 @@ public abstract class TransportInstanceSingleOperationAction<Request extends Ins
             }
 
             // no shardIt, might be in the case between index gateway recovery and shardIt initialization
+            // 没有要操作的shard 信息
             if (shardIt.size() == 0) {
                 retry(null);
                 return false;
             }
 
             // this transport only make sense with an iterator that returns a single shard routing (like primary)
+            // 由于一个存在的文档, 必然最多只需要一个主分片
             assert shardIt.size() == 1;
 
             ShardRouting shard = shardIt.nextOrNull();
             assert shard != null;
 
+            // 如果分片不是激活状态
             if (!shard.active()) {
                 retry(null);
                 return false;
@@ -177,13 +187,17 @@ public abstract class TransportInstanceSingleOperationAction<Request extends Ins
             }
 
             internalRequest.request().shardId = shardIt.shardId().id();
+
+            // 如果shard 所在的节点为当前节点
             if (shard.currentNodeId().equals(nodes.localNodeId())) {
                 internalRequest.request().beforeLocalFork();
                 try {
+                    // 使用线程池方式执行操作
                     threadPool.executor(executor).execute(new Runnable() {
                         @Override
                         public void run() {
                             try {
+                                // 抽象方法, 需要子类实现
                                 shardOperation(internalRequest, listener);
                             } catch (Throwable e) {
                                 if (retryOnFailure(e)) {
