@@ -274,6 +274,7 @@ public class DocumentMapperParser extends AbstractIndexComponent {
         }
         docBuilder.meta(attributes);
 
+        // 删除掉指定字段后, mapping 应该为空
         if (!mapping.isEmpty()) {
             throw new MapperParsingException("Root type mapping not empty after parsing! Remaining fields:  " + getRemainingFields(mapping));
         }

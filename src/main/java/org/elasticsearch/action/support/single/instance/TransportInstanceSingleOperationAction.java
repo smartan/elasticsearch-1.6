@@ -219,6 +219,7 @@ public abstract class TransportInstanceSingleOperationAction<Request extends Ins
                     }
                 }
             } else {
+                // 如果是远程节点, 需要将请求发送到对应节点
                 DiscoveryNode node = nodes.get(shard.currentNodeId());
                 transportService.sendRequest(node, actionName, internalRequest.request(), transportOptions(), new BaseTransportResponseHandler<Response>() {
 

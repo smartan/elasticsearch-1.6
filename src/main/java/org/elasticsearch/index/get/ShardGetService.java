@@ -165,16 +165,39 @@ public class ShardGetService extends AbstractIndexShardComponent {
         return FetchSourceContext.DO_NOT_FETCH_SOURCE;
     }
 
+    /**
+     * 从shard 中获取文档信息
+     * @param type      String      文档 type
+     * @param id        String      文档 id
+     * @param gFields   String[]    要获取的 fields
+     * @param realtime  boolean     是否实时
+     * @param version   long        文档的版本号
+     * @param versionType   VersionType     版本类型, 默认为 INTERNAL
+     * @param fetchSourceContext FetchSourceContext
+     * @param ignoreErrorsOnGeneratedFields boolean     是否忽略异常
+     * @return  GetResult  获取的结构
+     * @throws ElasticsearchException   Elasticsearch异常
+     */
     public GetResult innerGet(String type, String id, String[] gFields, boolean realtime, long version, VersionType versionType, FetchSourceContext fetchSourceContext, boolean ignoreErrorsOnGeneratedFields) throws ElasticsearchException {
+        // 归一化 fetch source context
         fetchSourceContext = normalizeFetchSourceContent(fetchSourceContext, gFields);
 
+        // 是否加载 source
         boolean loadSource = (gFields != null && gFields.length > 0) || fetchSourceContext.fetchSource();
 
         Engine.GetResult get = null;
+        // 从所有的type 中获取文档的版本和 source
         if (type == null || type.equals("_all")) {
             for (String typeX : mapperService.types()) {
-                get = indexShard.get(new Engine.Get(realtime, new Term(UidFieldMapper.NAME, Uid.createUidAsBytes(typeX, id)))
-                        .loadSource(loadSource).version(version).versionType(versionType));
+                // 遍历type
+                get = indexShard.get(
+                        new Engine.Get(
+                            realtime,
+                            new Term(UidFieldMapper.NAME, Uid.createUidAsBytes(typeX, id))
+                ).loadSource(loadSource)
+                                .version(version)
+                                .versionType(versionType));
+                // 只要获取一个type 即可
                 if (get.exists()) {
                     type = typeX;
                     break;
@@ -190,14 +213,21 @@ public class ShardGetService extends AbstractIndexShardComponent {
                 return new GetResult(shardId.index().name(), type, id, -1, false, null, null);
             }
         } else {
-            get = indexShard.get(new Engine.Get(realtime, new Term(UidFieldMapper.NAME, Uid.createUidAsBytes(type, id)))
-                    .loadSource(loadSource).version(version).versionType(versionType));
+            // 获取指定type 的文档版本和 source
+            get = indexShard.get(
+                    new Engine.Get(
+                            realtime,
+                            new Term(UidFieldMapper.NAME, Uid.createUidAsBytes(type, id))
+                    ).loadSource(loadSource)
+                            .version(version)
+                            .versionType(versionType));
             if (!get.exists()) {
                 get.release();
                 return new GetResult(shardId.index().name(), type, id, -1, false, null, null);
             }
         }
 
+        // 获取type 对应的DocumentMapper
         DocumentMapper docMapper = mapperService.documentMapper(type);
         if (docMapper == null) {
             get.release();
@@ -206,6 +236,7 @@ public class ShardGetService extends AbstractIndexShardComponent {
 
         try {
             // break between having loaded it from translog (so we only have _source), and having a document to load
+            // 只有从searcher 获取数据才
             if (get.docIdAndVersion() != null) {
                 return innerGetLoadFromStoredFields(type, id, gFields, fetchSourceContext, get, docMapper, ignoreErrorsOnGeneratedFields);
             } else {
@@ -214,7 +245,7 @@ public class ShardGetService extends AbstractIndexShardComponent {
                 Map<String, GetField> fields = null;
                 SearchLookup searchLookup = null;
 
-                // we can only load scripts that can run against the source
+                // we can only load scripts that can run against the so
                 if (gFields != null && gFields.length > 0) {
                     for (String field : gFields) {
                         if (SourceFieldMapper.NAME.equals(field)) {
@@ -333,6 +364,17 @@ public class ShardGetService extends AbstractIndexShardComponent {
         }
     }
 
+    /**
+     * 从已存储的fields 中获取字段信息
+     * @param type
+     * @param id
+     * @param gFields
+     * @param fetchSourceContext
+     * @param get
+     * @param docMapper
+     * @param ignoreErrorsOnGeneratedFields
+     * @return
+     */
     private GetResult innerGetLoadFromStoredFields(String type, String id, String[] gFields, FetchSourceContext fetchSourceContext, Engine.GetResult get, DocumentMapper docMapper, boolean ignoreErrorsOnGeneratedFields) {
         Map<String, GetField> fields = null;
         BytesReference source = null;

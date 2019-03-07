@@ -229,7 +229,9 @@ public class InternalEngine extends Engine {
     public GetResult get(Get get) throws EngineException {
         try (ReleasableLock lock = readLock.acquire()) {
             ensureOpen();
+            // 如果是实时, 则从translog 中获取source
             if (get.realtime()) {
+                // 从维护的version map 中获取version
                 VersionValue versionValue = versionMap.getUnderLock(get.uid().bytes());
                 if (versionValue != null) {
                     if (versionValue.delete()) {
@@ -242,6 +244,7 @@ public class InternalEngine extends Engine {
                     if (!get.loadSource()) {
                         return new GetResult(true, versionValue.version(), null);
                     }
+                    // 从translog中获取 source
                     Translog.Operation op = translog.read(versionValue.translogLocation());
                     if (op != null) {
                         return new GetResult(true, versionValue.version(), op.getSource());
@@ -250,6 +253,7 @@ public class InternalEngine extends Engine {
             }
 
             // no version, get the version from the index, we know that we refresh on flush
+            // 从searcher 中获取version 和source, 包含docIdAndVersion
             return getFromSearcher(get);
         }
     }

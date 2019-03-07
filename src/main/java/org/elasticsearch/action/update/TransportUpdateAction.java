@@ -185,14 +185,30 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
         return new PlainShardIterator(shardIterator.shardId(), ImmutableList.<ShardRouting>of());
     }
 
+    /**
+     * 重写父类 shard 操作, 初始重试次数为 0
+     * @param request   InternalRequest
+     * @param listener  ActionListener
+     * @throws ElasticsearchException   Elasticsearch 异常
+     */
     @Override
     protected void shardOperation(final InternalRequest request, final ActionListener<UpdateResponse> listener) throws ElasticsearchException {
         shardOperation(request, listener, 0);
     }
 
+    /**
+     * shard 操作逻辑
+     * @param request   InternalRequest
+     * @param listener  ActionListener
+     * @param retryCount    retryCount 重试次数
+     * @throws ElasticsearchException   Elasticsearch 异常
+     */
     protected void shardOperation(final InternalRequest request, final ActionListener<UpdateResponse> listener, final int retryCount) throws ElasticsearchException {
+        // 获取index 对应的service
         IndexService indexService = indicesService.indexServiceSafe(request.concreteIndex());
+        // 根据shard id 获取对应的IndexShard
         IndexShard indexShard = indexService.shardSafe(request.request().shardId());
+        // 对更新请求进行转换
         final UpdateHelper.Result result = updateHelper.prepare(request.request(), indexShard);
         switch (result.operation()) {
             case UPSERT:

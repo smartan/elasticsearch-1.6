@@ -220,6 +220,12 @@ public abstract class Engine implements Closeable {
         PENDING_OPERATIONS
     }
 
+    /**
+     * 从searcher 中获取version 和source
+     * @param get Get get 请求
+     * @return  GetResult
+     * @throws EngineException  Engine 异常
+     */
     final protected GetResult getFromSearcher(Get get) throws EngineException {
         final Searcher searcher = acquireSearcher("get");
         final Versions.DocIdAndVersion docIdAndVersion;

@@ -70,21 +70,34 @@ public class UpdateHelper extends AbstractComponent {
     }
 
     /**
+     * 通过将更新请求转换为Index 或Delete 请求或Update 的响应（无操作）来准备更新请求
      * Prepares an update request by converting it into an index or delete request or an update response (no action).
      */
     @SuppressWarnings("unchecked")
     public Result prepare(UpdateRequest request, IndexShard indexShard) {
         long getDateNS = System.nanoTime();
-        final GetResult getResult = indexShard.getService().get(request.type(), request.id(),
+        // 根据文档id 从shard 中get 文档信息
+        final GetResult getResult = indexShard.getService().get(
+                request.type(), // 文档 type
+                request.id(),   // 文档 id
                 new String[]{RoutingFieldMapper.NAME, ParentFieldMapper.NAME, TTLFieldMapper.NAME, TimestampFieldMapper.NAME},
-                true, request.version(), request.versionType(), FetchSourceContext.FETCH_SOURCE, false);
+                true,   // 如果实时, 则从translog 中加载source
+                request.version(),
+                request.versionType(),
+                FetchSourceContext.FETCH_SOURCE,
+                false
+        );
 
+        // 如果lucene 中不存在文档信息
         if (!getResult.isExists()) {
             if (request.upsertRequest() == null && !request.docAsUpsert()) {
                 throw new DocumentMissingException(new ShardId(indexShard.indexService().index().name(), request.shardId()), request.type(), request.id());
             }
             Long ttl = null;
+
+            // 获取索引请求
             IndexRequest indexRequest = request.docAsUpsert() ? request.doc() : request.upsertRequest();
+            // scripted upsert
             if (request.scriptedUpsert() && (request.script() != null)) {
                 // Run the script to perform the create logic
                 IndexRequest upsert = request.upsertRequest();               
