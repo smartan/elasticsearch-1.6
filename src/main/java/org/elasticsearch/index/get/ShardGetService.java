@@ -236,7 +236,7 @@ public class ShardGetService extends AbstractIndexShardComponent {
 
         try {
             // break between having loaded it from translog (so we only have _source), and having a document to load
-            // 只有从searcher 获取数据才
+            // 只有从searcher 获取数据才可以从
             if (get.docIdAndVersion() != null) {
                 return innerGetLoadFromStoredFields(type, id, gFields, fetchSourceContext, get, docMapper, ignoreErrorsOnGeneratedFields);
             } else {
@@ -366,19 +366,21 @@ public class ShardGetService extends AbstractIndexShardComponent {
 
     /**
      * 从已存储的fields 中获取字段信息
-     * @param type
-     * @param id
-     * @param gFields
-     * @param fetchSourceContext
-     * @param get
-     * @param docMapper
-     * @param ignoreErrorsOnGeneratedFields
-     * @return
+     * @param type String       文档type
+     * @param id   String       文档id
+     * @param gFields   String[]    要获取的字段
+     * @param fetchSourceContext FetchSourceContext
+     * @param get   GetResult
+     * @param docMapper DocumentMapper
+     * @param ignoreErrorsOnGeneratedFields boolean
+     * @return  GetResult
      */
     private GetResult innerGetLoadFromStoredFields(String type, String id, String[] gFields, FetchSourceContext fetchSourceContext, Engine.GetResult get, DocumentMapper docMapper, boolean ignoreErrorsOnGeneratedFields) {
         Map<String, GetField> fields = null;
         BytesReference source = null;
+        // docId 和 version
         Versions.DocIdAndVersion docIdAndVersion = get.docIdAndVersion();
+        // 创建JustSourceFieldsVisitor 对象
         FieldsVisitor fieldVisitor = buildFieldsVisitors(gFields, fetchSourceContext);
         if (fieldVisitor != null) {
             try {
