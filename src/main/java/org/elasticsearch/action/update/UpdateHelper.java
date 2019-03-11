@@ -81,7 +81,7 @@ public class UpdateHelper extends AbstractComponent {
                 request.type(), // 文档 type
                 request.id(),   // 文档 id
                 new String[]{RoutingFieldMapper.NAME, ParentFieldMapper.NAME, TTLFieldMapper.NAME, TimestampFieldMapper.NAME},
-                true,   // 如果实时, 则从translog 中加载source
+                true,   // 如果实时, 则从translog 中加载source, 否则从searcher 中获取source
                 request.version(),
                 request.versionType(),
                 FetchSourceContext.FETCH_SOURCE,
@@ -95,18 +95,24 @@ public class UpdateHelper extends AbstractComponent {
             }
             Long ttl = null;
 
-            // 获取索引请求
+            // 获取索引请求, request.doc (docAsUpsert = true) 或者 request.upsertRequest
             IndexRequest indexRequest = request.docAsUpsert() ? request.doc() : request.upsertRequest();
+
             // scripted upsert
+            // 运行脚本以执行创建逻辑
             if (request.scriptedUpsert() && (request.script() != null)) {
                 // Run the script to perform the create logic
-                IndexRequest upsert = request.upsertRequest();               
+                IndexRequest upsert = request.upsertRequest();
+
+                // upsert doc
                 Map<String, Object> upsertDoc = upsert.sourceAsMap();
                 Map<String, Object> ctx = new HashMap<>(2);
+
                 // Tell the script that this is a create and not an update
                 ctx.put("op", "create");
                 ctx.put("_source", upsertDoc);
                 try {
+                    // 执行脚本
                     ExecutableScript script = scriptService.executable(request.scriptLang, request.script, request.scriptType, ScriptContext.Standard.UPDATE, request.scriptParams);
                     script.setNextVar("ctx", ctx);
                     script.run();
@@ -131,27 +137,40 @@ public class UpdateHelper extends AbstractComponent {
                     update.setGetResult(getResult);
                     return new Result(update, Operation.NONE, upsertDoc, XContentType.JSON);
                 }
+                // 设置source, request.upsertRequest().sourceAsMap()
                 indexRequest.source((Map) ctx.get("_source"));
-            }
+            } // 处理完脚本
 
-            indexRequest.index(request.index()).type(request.type()).id(request.id())
+            // 开始构建index request
+            indexRequest.index(request.index())
+                    .type(request.type())
+                    .id(request.id())
                     // it has to be a "create!"
                     .create(true)                    
                     .ttl(ttl)
                     .refresh(request.refresh())
                     .routing(request.routing())
                     .parent(request.parent())
-                    .replicationType(request.replicationType()).consistencyLevel(request.consistencyLevel());
+                    .replicationType(request.replicationType())
+                    .consistencyLevel(request.consistencyLevel());
             indexRequest.operationThreaded(false);
+
+            // 如果不是内部版本, 则需要设置version
             if (request.versionType() != VersionType.INTERNAL) {
                 // in all but the internal versioning mode, we want to create the new document using the given version.
-                indexRequest.version(request.version()).versionType(request.versionType());
+                indexRequest
+                        .version(request.version())
+                        .versionType(request.versionType());
             }
+
+            // 构建完返回结果
             return new Result(indexRequest, Operation.UPSERT, null, null);
         }
 
+        // 开始处理文档在索引中存在的情况
         long updateVersion = getResult.getVersion();
 
+        // 版本类型不说Internal 就是 Force
         if (request.versionType() != VersionType.INTERNAL) {
             assert request.versionType() == VersionType.FORCE;
             updateVersion = request.version(); // remember, match_any is excluded by the conflict test
@@ -162,25 +181,35 @@ public class UpdateHelper extends AbstractComponent {
             throw new DocumentSourceMissingException(new ShardId(indexShard.indexService().index().name(), request.shardId()), request.type(), request.id());
         }
 
+        // 将source 转化成Tuple 对象
         Tuple<XContentType, Map<String, Object>> sourceAndContent = XContentHelper.convertToMap(getResult.internalSourceRef(), true);
         String operation = null;
         String timestamp = null;
         Long ttl = null;
         final Map<String, Object> updatedSourceAsMap;
+
+        // content type 是v1
         final XContentType updateSourceContentType = sourceAndContent.v1();
+
+        // 获取routing 和parent
         String routing = getResult.getFields().containsKey(RoutingFieldMapper.NAME) ? getResult.field(RoutingFieldMapper.NAME).getValue().toString() : null;
         String parent = getResult.getFields().containsKey(ParentFieldMapper.NAME) ? getResult.field(ParentFieldMapper.NAME).getValue().toString() : null;
 
+        // 没有script 且doc不为null 的情况
         if (request.script() == null && request.doc() != null) {
+            // doc
             IndexRequest indexRequest = request.doc();
+            // source
             updatedSourceAsMap = sourceAndContent.v2();
             if (indexRequest.ttl() > 0) {
                 ttl = indexRequest.ttl();
             }
+            // timestamp
             timestamp = indexRequest.timestamp();
             if (indexRequest.routing() != null) {
                 routing = indexRequest.routing();
             }
+            // parent
             if (indexRequest.parent() != null) {
                 parent = indexRequest.parent();
             }
@@ -192,8 +221,11 @@ public class UpdateHelper extends AbstractComponent {
                 operation = "none";
             }
         } else {
+            // 有script 的情形
             Map<String, Object> ctx = new HashMap<>(16);
+            // ttl
             Long originalTtl = getResult.getFields().containsKey(TTLFieldMapper.NAME) ? (Long) getResult.field(TTLFieldMapper.NAME).getValue() : null;
+            // timestamp
             Long originalTimestamp = getResult.getFields().containsKey(TimestampFieldMapper.NAME) ? (Long) getResult.field(TimestampFieldMapper.NAME).getValue() : null;
             ctx.put("_index", getResult.getIndex());
             ctx.put("_type", getResult.getType());
@@ -205,6 +237,7 @@ public class UpdateHelper extends AbstractComponent {
             ctx.put("_ttl", originalTtl);
             ctx.put("_source", sourceAndContent.v2());
 
+            // 执行脚本
             try {
                 ExecutableScript script = scriptService.executable(request.scriptLang, request.script, request.scriptType, ScriptContext.Standard.UPDATE, request.scriptParams);
                 script.setNextVar("ctx", ctx);
@@ -239,19 +272,33 @@ public class UpdateHelper extends AbstractComponent {
             }
         }
 
+        // 默认为index, 开始构建请求
         if (operation == null || "index".equals(operation)) {
-            final IndexRequest indexRequest = Requests.indexRequest(request.index()).type(request.type()).id(request.id()).routing(routing).parent(parent)
+            final IndexRequest indexRequest = Requests.indexRequest(request.index())
+                    .type(request.type())
+                    .id(request.id())
+                    .routing(routing)
+                    .parent(parent)
                     .source(updatedSourceAsMap, updateSourceContentType)
-                    .version(updateVersion).versionType(request.versionType())
-                    .replicationType(request.replicationType()).consistencyLevel(request.consistencyLevel())
-                    .timestamp(timestamp).ttl(ttl)
+                    .version(updateVersion)
+                    .versionType(request.versionType())
+                    .replicationType(request.replicationType())
+                    .consistencyLevel(request.consistencyLevel())
+                    .timestamp(timestamp)
+                    .ttl(ttl)
                     .refresh(request.refresh());
             indexRequest.operationThreaded(false);
             return new Result(indexRequest, Operation.INDEX, updatedSourceAsMap, updateSourceContentType);
         } else if ("delete".equals(operation)) {
-            DeleteRequest deleteRequest = Requests.deleteRequest(request.index()).type(request.type()).id(request.id()).routing(routing).parent(parent)
-                    .version(updateVersion).versionType(request.versionType())
-                    .replicationType(request.replicationType()).consistencyLevel(request.consistencyLevel());
+            DeleteRequest deleteRequest = Requests.deleteRequest(request.index())
+                    .type(request.type())
+                    .id(request.id())
+                    .routing(routing)
+                    .parent(parent)
+                    .version(updateVersion)
+                    .versionType(request.versionType())
+                    .replicationType(request.replicationType())
+                    .consistencyLevel(request.consistencyLevel());
             deleteRequest.operationThreaded(false);
             return new Result(deleteRequest, Operation.DELETE, updatedSourceAsMap, updateSourceContentType);
         } else if ("none".equals(operation)) {

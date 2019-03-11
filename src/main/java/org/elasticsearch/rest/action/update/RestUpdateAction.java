@@ -59,7 +59,7 @@ public class RestUpdateAction extends BaseRestHandler {
         updateRequest.listenerThreaded(false);
         updateRequest.routing(request.param("routing"));
         updateRequest.parent(request.param("parent"));
-        updateRequest.timeout(request.paramAsTime("timeout", updateRequest.timeout()));
+        updateRequest.timeout(request.paramAsTime("timeout", updateRequest.timeout())); // 默认 1s
         updateRequest.refresh(request.paramAsBoolean("refresh", updateRequest.refresh()));
         String replicationType = request.param("replication");
         if (replicationType != null) {
@@ -99,6 +99,7 @@ public class RestUpdateAction extends BaseRestHandler {
 
         // see if we have it in the body
         if (request.hasContent()) {
+            // 解析params scripted_upsert upsert doc doc_as_upsert detect_noop 参数
             updateRequest.source(request.content());
             IndexRequest upsertRequest = updateRequest.upsertRequest();
             if (upsertRequest != null) {

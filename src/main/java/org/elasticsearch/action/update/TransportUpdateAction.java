@@ -208,14 +208,15 @@ public class TransportUpdateAction extends TransportInstanceSingleOperationActio
         IndexService indexService = indicesService.indexServiceSafe(request.concreteIndex());
         // 根据shard id 获取对应的IndexShard
         IndexShard indexShard = indexService.shardSafe(request.request().shardId());
-        // 对更新请求进行转换
+        // 对更新请求进行转换, 获取最终要更新的索引信息
         final UpdateHelper.Result result = updateHelper.prepare(request.request(), indexShard);
         switch (result.operation()) {
             case UPSERT:
+                // 构造索引请求, 将result.action()中的type id routing 和source 拷贝到index request 对象中
                 IndexRequest upsertRequest = new IndexRequest((IndexRequest)result.action(), request.request());
                 // we fetch it from the index request so we don't generate the bytes twice, its already done in the index request
                 final BytesReference upsertSourceBytes = upsertRequest.source();
-                // 执行TransportIndexAction 创建索引文档
+                // 执行TransportIndexAction.execute(),  创建索引文档
                 indexAction.execute(upsertRequest, new ActionListener<IndexResponse>() {
                     @Override
                     public void onResponse(IndexResponse response) {
