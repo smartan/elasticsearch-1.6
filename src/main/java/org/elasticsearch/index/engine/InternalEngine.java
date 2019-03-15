@@ -446,12 +446,14 @@ public class InternalEngine extends Engine {
      */
     private void innerIndex(Index index) throws IOException {
         synchronized (dirtyLock(index.uid())) {
-            // 获取currentVersion
+            // 获取当前版本号 currentVersion
             final long currentVersion;
             VersionValue versionValue = versionMap.getUnderLock(index.uid().bytes());
+            // 如果version map 中没有拿到当前version, 则需要从reader 中获取当前version
             if (versionValue == null) {
                 currentVersion = loadCurrentVersionFromIndex(index.uid());
             } else {
+                // 判断版本是否待删除
                 if (engineConfig.isEnableGcDeletes() && versionValue.delete() && (engineConfig.getThreadPool().estimatedTimeInMillis() - versionValue.time()) > engineConfig.getGcDeletesInMillis()) {
                     currentVersion = Versions.NOT_FOUND; // deleted, and GC
                 } else {
@@ -459,9 +461,16 @@ public class InternalEngine extends Engine {
                 }
             }
 
-            // 获取更新后的Version
+            // 更新后的Version
             long updatedVersion;
+            // 待更新索引的版本号
             long expectedVersion = index.version();
+            // 使用当前version 和待更新索引version 判断是否存在版本冲突
+            // 判断条件为:
+            // INTERNAL 为当前版本和待更新版本不一致
+            // EXTERNAL 为当前版本大于等于待更新版本
+            // EXTERNAL_GTE 为当前版本大于待更新版本
+            // FORCE 为待更新版本未指定
             if (index.versionType().isVersionConflictForWrites(currentVersion, expectedVersion)) {
                 if (index.origin() == Operation.Origin.RECOVERY) {
                     return;
@@ -469,6 +478,11 @@ public class InternalEngine extends Engine {
                     throw new VersionConflictEngineException(shardId, index.type(), index.id(), currentVersion, expectedVersion);
                 }
             }
+
+            // INTERNAL 如果当前版本为未找到或者未设置, 则为1, 否则为当前版本+1
+            // EXTERNAL 待更新索引版本号
+            // EXTERNAL_GTE 待更新索引版本号
+            // FORCE 待更新索引版本号
             updatedVersion = index.versionType().updateVersion(currentVersion, expectedVersion);
 
             index.updateVersion(updatedVersion);
