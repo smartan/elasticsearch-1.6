@@ -98,9 +98,18 @@ public class TransportSuggestAction extends TransportBroadcastOperationAction<Su
         return new ShardSuggestResponse();
     }
 
+    /**
+     * 获取请求的索引对应的所有shards 信息
+     * @param clusterState          ClusterState
+     * @param request               SuggestRequest
+     * @param concreteIndices       String
+     * @return      GroupShardsIterator
+     */
     @Override
     protected GroupShardsIterator shards(ClusterState clusterState, SuggestRequest request, String[] concreteIndices) {
+        // 获取请求索引对应的routing 信息
         Map<String, Set<String>> routingMap = clusterState.metaData().resolveSearchRouting(request.routing(), request.indices());
+        // 根据routing 和 preference 偏好获取对应的shards 信息
         return clusterService.operationRouting().searchShards(clusterState, request.indices(), concreteIndices, routingMap, request.preference());
     }
 

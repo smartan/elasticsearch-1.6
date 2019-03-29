@@ -233,6 +233,11 @@ public class RestController extends AbstractLifecycleComponent<RestController> {
         }
     }
 
+    /**
+     * 根据指定的request path, 获取对应的handler
+     * @param request   RestRequest
+     * @return      RestHandler
+     */
     private RestHandler getHandler(RestRequest request) {
         String path = getPath(request);
         RestRequest.Method method = request.method();
