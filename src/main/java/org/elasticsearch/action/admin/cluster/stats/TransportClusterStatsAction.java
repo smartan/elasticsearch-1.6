@@ -112,8 +112,11 @@ public class TransportClusterStatsAction extends TransportNodesOperationAction<C
 
     @Override
     protected ClusterStatsNodeResponse nodeOperation(ClusterStatsNodeRequest nodeRequest) throws ElasticsearchException {
+        // node 信息
         NodeInfo nodeInfo = nodeService.info(false, true, false, true, false, false, true, false, true);
+        // node 状态
         NodeStats nodeStats = nodeService.stats(CommonStatsFlags.NONE, false, true, true, false, false, true, false, false, false);
+        // shard 状态
         List<ShardStats> shardsStats = new ArrayList<>();
         for (IndexService indexService : indicesService) {
             for (IndexShard indexShard : indexService) {
@@ -124,7 +127,9 @@ public class TransportClusterStatsAction extends TransportNodesOperationAction<C
             }
         }
 
+        // 获取集群状态
         ClusterHealthStatus clusterStatus = null;
+        // 当前节点如果是master 节点
         if (clusterService.state().nodes().localNodeMaster()) {
             // populate cluster status
             clusterStatus = ClusterHealthStatus.GREEN;
@@ -136,10 +141,12 @@ public class TransportClusterStatsAction extends TransportNodesOperationAction<C
 
                 ClusterIndexHealth indexHealth = new ClusterIndexHealth(indexMetaData, indexRoutingTable);
                 switch (indexHealth.getStatus()) {
+                    // 索引状态是红色, 集群状态就是红色
                     case RED:
                         clusterStatus = ClusterHealthStatus.RED;
                         break;
                     case YELLOW:
+                        // 索引状态是黄色, 如果集群状态不是红色, 那么集群状态就是黄色
                         if (clusterStatus != ClusterHealthStatus.RED) {
                             clusterStatus = ClusterHealthStatus.YELLOW;
                         }

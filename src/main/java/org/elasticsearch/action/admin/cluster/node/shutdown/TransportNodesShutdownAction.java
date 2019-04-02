@@ -102,15 +102,25 @@ public class TransportNodesShutdownAction extends TransportMasterNodeOperationAc
         }
     }
 
+    /**
+     * 关闭node 节点的master 操作
+     * @param request   NodesShutdownRequest
+     * @param state     ClusterState
+     * @param listener  ActionListener
+     * @throws ElasticsearchException   ElasticsearchException
+     */
     @Override
     protected void masterOperation(final NodesShutdownRequest request, final ClusterState state, final ActionListener<NodesShutdownResponse> listener) throws ElasticsearchException {
         if (disabled) {
             throw new ElasticsearchIllegalStateException("Shutdown is disabled");
         }
         final ObjectOpenHashSet<DiscoveryNode> nodes = new ObjectOpenHashSet<>();
+        // 关闭全部节点
         if (state.nodes().isAllNodes(request.nodesIds)) {
             logger.info("[cluster_shutdown]: requested, shutting down in [{}]", request.delay);
+            // 添加 data 节点
             nodes.addAll(state.nodes().dataNodes().values());
+            // 添加 master 节点
             nodes.addAll(state.nodes().masterNodes().values());
             Thread t = new Thread(new Runnable() {
                 @Override
@@ -127,6 +137,7 @@ public class TransportNodesShutdownAction extends TransportMasterNodeOperationAc
                     final CountDownLatch latch = new CountDownLatch(nodes.size());
                     for (ObjectCursor<DiscoveryNode> cursor : nodes) {
                         final DiscoveryNode node = cursor.value;
+                        // 如果要shutdown 的节点是master, 则不做操作
                         if (node.id().equals(state.nodes().masterNodeId())) {
                             // don't shutdown the master yet...
                             latch.countDown();
@@ -171,6 +182,7 @@ public class TransportNodesShutdownAction extends TransportMasterNodeOperationAc
             });
             t.start();
         } else {
+            // 解析要关闭的节点信息
             final String[] nodesIds = state.nodes().resolveNodesIds(request.nodesIds);
             logger.info("[partial_cluster_shutdown]: requested, shutting down [{}] in [{}]", nodesIds, request.delay);
 
@@ -191,6 +203,7 @@ public class TransportNodesShutdownAction extends TransportMasterNodeOperationAc
                     }
 
                     final CountDownLatch latch = new CountDownLatch(nodesIds.length);
+                    // 遍历要关闭的节点
                     for (String nodeId : nodesIds) {
                         final DiscoveryNode node = state.nodes().get(nodeId);
                         if (node == null) {
@@ -200,7 +213,12 @@ public class TransportNodesShutdownAction extends TransportMasterNodeOperationAc
                         }
 
                         logger.trace("[partial_cluster_shutdown]: sending shutdown request to [{}]", node);
-                        transportService.sendRequest(node, SHUTDOWN_NODE_ACTION_NAME, new NodeShutdownRequest(request), new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
+                        transportService.sendRequest(
+                                node, // 发送到的节点
+                                SHUTDOWN_NODE_ACTION_NAME, // 注册的action, 通过这个action 去找对应的handler
+                                new NodeShutdownRequest(request), // 封装的请求
+                                new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {  // 处理响应的handler
+
                             @Override
                             public void handleResponse(TransportResponse.Empty response) {
                                 logger.trace("[partial_cluster_shutdown]: received shutdown response from [{}]", node);
@@ -215,6 +233,7 @@ public class TransportNodesShutdownAction extends TransportMasterNodeOperationAc
                         });
                     }
 
+                    // await() 等待节点关闭
                     try {
                         latch.await();
                     } catch (InterruptedException e) {
@@ -229,6 +248,9 @@ public class TransportNodesShutdownAction extends TransportMasterNodeOperationAc
         listener.onResponse(new NodesShutdownResponse(clusterName, nodes.toArray(DiscoveryNode.class)));
     }
 
+    /**
+     * 该handler 已经注册到 SHUTDOWN_NODE_ACTION_NAME action 中
+     */
     private class NodeShutdownRequestHandler extends BaseTransportRequestHandler<NodeShutdownRequest> {
 
         @Override
@@ -247,6 +269,7 @@ public class TransportNodesShutdownAction extends TransportMasterNodeOperationAc
                 throw new ElasticsearchIllegalStateException("Shutdown is disabled");
             }
             logger.info("shutting down in [{}]", delay);
+            // 新启动一个线程, 执行org.tanukisoftware.wrapper.WrapperManager.stopAndReturn 方法或者执行node.close()
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {

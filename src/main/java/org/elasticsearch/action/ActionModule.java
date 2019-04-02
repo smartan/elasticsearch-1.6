@@ -233,14 +233,22 @@ public class ActionModule extends AbstractModule {
         }
         bind(ActionFilters.class).asEagerSingleton();
 
+        // 查看节点信息, 主要是调用NodeService 类的info() 方法, 构造NodeInfo 对象
         registerAction(NodesInfoAction.INSTANCE, TransportNodesInfoAction.class);
+        // 查看节点状态, 主要是调用NodeService 类的stats() 方法, 构造NodeStats 对象
         registerAction(NodesStatsAction.INSTANCE, TransportNodesStatsAction.class);
+        // 关闭节点, 主要执行节点的node.close() 方法
         registerAction(NodesShutdownAction.INSTANCE, TransportNodesShutdownAction.class);
+        // 重启节点, 先执行node.close() 再执行node.start() 方法
         registerAction(NodesRestartAction.INSTANCE, TransportNodesRestartAction.class);
+        // 查看当前节点的热线程, 主要是调用HotThreads 类的detect() 方法
         registerAction(NodesHotThreadsAction.INSTANCE, TransportNodesHotThreadsAction.class);
 
+        // 查看集群统计信息, 包括集群健康状态, 节点信息, 节点状态, shard 状态
         registerAction(ClusterStatsAction.INSTANCE, TransportClusterStatsAction.class);
+        // 查看集群状态信息
         registerAction(ClusterStateAction.INSTANCE, TransportClusterStateAction.class);
+        // 查看集群的健康状态
         registerAction(ClusterHealthAction.INSTANCE, TransportClusterHealthAction.class);
         registerAction(ClusterUpdateSettingsAction.INSTANCE, TransportClusterUpdateSettingsAction.class);
         registerAction(ClusterRerouteAction.INSTANCE, TransportClusterRerouteAction.class);
@@ -291,7 +299,9 @@ public class ActionModule extends AbstractModule {
         registerAction(AliasesExistAction.INSTANCE, TransportAliasesExistAction.class);
         registerAction(GetSettingsAction.INSTANCE, TransportGetSettingsAction.class);
 
+        // 新建索引, 处理索引请求
         registerAction(IndexAction.INSTANCE, TransportIndexAction.class);
+        // 根据文档id 从shard 中获取索引文档详情
         registerAction(GetAction.INSTANCE, TransportGetAction.class);
         registerAction(TermVectorAction.INSTANCE, TransportSingleShardTermVectorAction.class);
         registerAction(MultiTermVectorsAction.INSTANCE, TransportMultiTermVectorsAction.class,
