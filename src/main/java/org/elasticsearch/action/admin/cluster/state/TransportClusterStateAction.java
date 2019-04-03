@@ -88,8 +88,10 @@ public class TransportClusterStateAction extends TransportMasterNodeReadOperatio
         ClusterState currentState = clusterService.state();
         logger.trace("Serving cluster state request using version {}", currentState.version());
         ClusterState.Builder builder = ClusterState.builder(currentState.getClusterName());
+        // 版本信息
         builder.version(currentState.version());
         if (request.nodes()) {
+            // 当前集群节点信息
             builder.nodes(currentState.nodes());
         }
         if (request.routingTable()) {
@@ -100,12 +102,14 @@ public class TransportClusterStateAction extends TransportMasterNodeReadOperatio
                         routingTableBuilder.add(currentState.routingTable().getIndicesRouting().get(filteredIndex));
                     }
                 }
+                // routing table 信息
                 builder.routingTable(routingTableBuilder);
             } else {
                 builder.routingTable(currentState.routingTable());
             }
         }
         if (request.blocks()) {
+            // blocks 信息
             builder.blocks(currentState.blocks());
         }
         if (request.metaData()) {
@@ -134,6 +138,7 @@ public class TransportClusterStateAction extends TransportMasterNodeReadOperatio
                 }
             }
 
+            // meta data 信息
             builder.metaData(mdBuilder);
         }
         listener.onResponse(new ClusterStateResponse(clusterName, builder.build()));

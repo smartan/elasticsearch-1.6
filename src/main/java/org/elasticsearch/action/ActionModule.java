@@ -246,14 +246,18 @@ public class ActionModule extends AbstractModule {
 
         // 查看集群统计信息, 包括集群健康状态, 节点信息, 节点状态, shard 状态
         registerAction(ClusterStatsAction.INSTANCE, TransportClusterStatsAction.class);
-        // 查看集群状态信息
+        // 查看集群状态信息, 包括Version Nodes RoutingTable Blocks 和 MetaData
         registerAction(ClusterStateAction.INSTANCE, TransportClusterStateAction.class);
         // 查看集群的健康状态
         registerAction(ClusterHealthAction.INSTANCE, TransportClusterHealthAction.class);
+        // 更新集群settings, 主要是提交一个更新集群状态的Task, 将请求的settings 覆盖集群的settings
         registerAction(ClusterUpdateSettingsAction.INSTANCE, TransportClusterUpdateSettingsAction.class);
+        // 对集群进行reroute
         registerAction(ClusterRerouteAction.INSTANCE, TransportClusterRerouteAction.class);
         registerAction(ClusterSearchShardsAction.INSTANCE, TransportClusterSearchShardsAction.class);
+        // 查看集群的pending task, 主要是调用InternalClusterService 的pendingTasks() 方法
         registerAction(PendingClusterTasksAction.INSTANCE, TransportPendingClusterTasksAction.class);
+        // 和snapshot 有关的action
         registerAction(PutRepositoryAction.INSTANCE, TransportPutRepositoryAction.class);
         registerAction(GetRepositoriesAction.INSTANCE, TransportGetRepositoriesAction.class);
         registerAction(DeleteRepositoryAction.INSTANCE, TransportDeleteRepositoryAction.class);

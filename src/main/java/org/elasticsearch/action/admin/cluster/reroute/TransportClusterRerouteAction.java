@@ -71,6 +71,13 @@ public class TransportClusterRerouteAction extends TransportMasterNodeOperationA
         return new ClusterRerouteResponse();
     }
 
+    /**
+     * 重写master 操作, 提交一个cluster reroute 任务
+     * @param request   ClusterRerouteRequest
+     * @param state     ClusterState
+     * @param listener  ActionListener
+     * @throws ElasticsearchException   ElasticsearchException
+     */
     @Override
     protected void masterOperation(final ClusterRerouteRequest request, final ClusterState state, final ActionListener<ClusterRerouteResponse> listener) throws ElasticsearchException {
         clusterService.submitStateUpdateTask("cluster_reroute (api)", Priority.IMMEDIATE, new AckedClusterStateUpdateTask<ClusterRerouteResponse>(request, listener) {

@@ -90,11 +90,19 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeOpe
         return new ClusterUpdateSettingsResponse();
     }
 
+    /**
+     * 重写 master 操作, 主要是发送一个更新集群settings 的task
+     * @param request   ClusterUpdateSettingsRequest
+     * @param state     ClusterState
+     * @param listener  ActionListener
+     * @throws ElasticsearchException   ElasticsearchException
+     */
     @Override
     protected void masterOperation(final ClusterUpdateSettingsRequest request, final ClusterState state, final ActionListener<ClusterUpdateSettingsResponse> listener) throws ElasticsearchException {
         final ImmutableSettings.Builder transientUpdates = ImmutableSettings.settingsBuilder();
         final ImmutableSettings.Builder persistentUpdates = ImmutableSettings.settingsBuilder();
 
+        // 更新集群任务的task
         clusterService.submitStateUpdateTask("cluster_update_settings", Priority.IMMEDIATE, new AckedClusterStateUpdateTask<ClusterUpdateSettingsResponse>(request, listener) {
 
             private volatile boolean changed = false;
@@ -181,6 +189,11 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeOpe
                 super.onFailure(source, t);
             }
 
+            /**
+             * 更新集群settings 的逻辑入口
+             * @param currentState  ClusterState
+             * @return ClusterState
+             */
             @Override
             public ClusterState execute(final ClusterState currentState) {
                 ImmutableSettings.Builder transientSettings = ImmutableSettings.settingsBuilder();
@@ -226,13 +239,15 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeOpe
                         .transientSettings(transientSettings.build());
 
                 ClusterBlocks.Builder blocks = ClusterBlocks.builder().blocks(currentState.blocks());
-                boolean updatedReadOnly = metaData.persistentSettings().getAsBoolean(MetaData.SETTING_READ_ONLY, false) || metaData.transientSettings().getAsBoolean(MetaData.SETTING_READ_ONLY, false);
+                boolean updatedReadOnly = metaData.persistentSettings().getAsBoolean(MetaData.SETTING_READ_ONLY, false)
+                                                || metaData.transientSettings().getAsBoolean(MetaData.SETTING_READ_ONLY, false);
                 if (updatedReadOnly) {
                     blocks.addGlobalBlock(MetaData.CLUSTER_READ_ONLY_BLOCK);
                 } else {
                     blocks.removeGlobalBlock(MetaData.CLUSTER_READ_ONLY_BLOCK);
                 }
 
+                // 重建cluster state 和meta data 以及 blocks
                 return builder(currentState).metaData(metaData).blocks(blocks).build();
             }
         });
