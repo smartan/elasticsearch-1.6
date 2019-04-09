@@ -271,7 +271,9 @@ public class ActionModule extends AbstractModule {
         registerAction(IndicesStatsAction.INSTANCE, TransportIndicesStatsAction.class);
         registerAction(IndicesStatusAction.INSTANCE, TransportIndicesStatusAction.class);
         registerAction(IndicesSegmentsAction.INSTANCE, TransportIndicesSegmentsAction.class);
+        // 创建索引, 提交一个更新集群信息的Task, 主要是向集群routing table 和meta data 中写入新索引数据
         registerAction(CreateIndexAction.INSTANCE, TransportCreateIndexAction.class);
+        // 删除索引, 提交一个更新集群信息的Task, 从集群routing table 和meta data 中删除请求的索引数据
         registerAction(DeleteIndexAction.INSTANCE, TransportDeleteIndexAction.class);
         registerAction(GetIndexAction.INSTANCE, TransportGetIndexAction.class);
         registerAction(OpenIndexAction.INSTANCE, TransportOpenIndexAction.class);
